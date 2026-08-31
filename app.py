@@ -6,96 +6,121 @@ from audio_recorder_streamlit import audio_recorder
 from google import genai
 from google.genai import types
 
-# ==========================================
-# 1. ĐIỀN API KEY CỦA BẠN TRỰC TIẾP VÀO ĐÂY
-# ==========================================
-GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "")
+# ==============================================================================
+# CẤU HÌNH API KEY (Tương thích cả khi chạy cục bộ lẫn Deploy Streamlit Cloud)
+# ==============================================================================
+# Tự động lấy từ Streamlit Secrets khi deploy web, hoặc biến môi trường/key nội bộ
+DEFAULT_KEY = ""  # Có thể dán trực tiếp API key của bạn vào đây nếu chỉ chạy trên máy cá nhân
+GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", DEFAULT_KEY))
 
-# Cấu hình giao diện
+# Cấu hình trang giao diện
 st.set_page_config(
-    page_title="Luyện thi Speaking Aptis Part 1",
+    page_title="Luyện thi Speaking Aptis - AI Coach",
     page_icon="🎙️",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Khởi tạo câu hỏi mặc định
-if "current_q_idx" not in st.session_state:
-    st.session_state.current_q_idx = 0
+# Tùy biến CSS để giao diện trực quan, rõ ràng
+st.markdown("""
+<style>
+    .main-title {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #1E3A8A;
+        margin-bottom: 0.2rem;
+    }
+    .question-box {
+        background-color: #EFF6FF;
+        border-left: 5px solid #2563EB;
+        padding: 16px;
+        border-radius: 8px;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 1.5rem;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# 28 câu hỏi Part 1 đã trích xuất từ đề thi
+# 28 câu hỏi Part 1 chuẩn Aptis trích xuất từ đề thi
 QUESTIONS = [
-    {"topic": "Family", "question": "Please tell me about your family?"},
-    {"topic": "Personal Introduction", "question": "Please tell me about yourself?"},
-    {"topic": "Hometown & Places", "question": "Tell me about your hometown / the place that you live? / A famous place in your country?"},
-    {"topic": "Travel in Country", "question": "Tell me the best way to travel about around your country?"},
-    {"topic": "Friend & Family Member", "question": "Tell me about your friend / a member in your family"},
-    {"topic": "Weather & Seasons", "question": "What is the weather like today? / What is your favorite season?"},
-    {"topic": "Good Memories", "question": "Please tell me about one of your good memories"},
-    {"topic": "Activities with Friends", "question": "What do you like doing with your friends?"},
-    {"topic": "Free Time Activities", "question": "What do you like doing in your free time?"},
-    {"topic": "Past Activities", "question": "What did you do last night / on the weekend?"},
-    {"topic": "First School", "question": "Please tell me about your first school?"},
-    {"topic": "Current Room", "question": "Describe the room you are in?"},
-    {"topic": "Journey Today", "question": "Describe your journey here today?"},
-    {"topic": "Clothing & Outfit", "question": "What are you wearing today?"},
-    {"topic": "Feeling Tired", "question": "When do you feel tired?"},
-    {"topic": "Vietnamese Meal", "question": "Describe a typical Vietnamese meal?"},
-    {"topic": "Typical Day", "question": "Describe your typical day?"},
-    {"topic": "Free Time Hobbies", "question": "What do you like to do in your free time?"},
-    {"topic": "Favorite Places", "question": "Describe your favorite places"},
-    {"topic": "Conversation with Mother", "question": "Tell me about the last time you talked with your mother"},
-    {"topic": "Sports in Country", "question": "People like sport in your country"},
-    {"topic": "New House", "question": "What are you looking for in your new house?"},
-    {"topic": "Learning English", "question": "Why are you learning English?"},
-    {"topic": "Work & Profession", "question": "Describe your job"},
-    {"topic": "Food & Cuisine", "question": "What is the food like in your country?"},
-    {"topic": "Stress & Pressure", "question": "When do you feel stressed?"},
-    {"topic": "Travel Interests", "question": "Tell me why you are interested in travel?"},
-    {"topic": "Favorite Books", "question": "Favorite book in your country?"}
+    {"id": 1, "topic": "Family", "question": "Please tell me about your family?"},
+    {"id": 2, "topic": "Personal Introduction", "question": "Please tell me about yourself?"},
+    {"id": 3, "topic": "Hometown & Places", "question": "Tell me about your hometown / the place that you live? / A famous place in your country?"},
+    {"id": 4, "topic": "Travel in Country", "question": "Tell me the best way to travel about around your country?"},
+    {"id": 5, "topic": "Friend & Family Member", "question": "Tell me about your friend / a member in your family"},
+    {"id": 6, "topic": "Weather & Seasons", "question": "What is the weather like today? / What is your favorite season?"},
+    {"id": 7, "topic": "Good Memories", "question": "Please tell me about one of your good memories"},
+    {"id": 8, "topic": "Activities with Friends", "question": "What do you like doing with your friends?"},
+    {"id": 9, "topic": "Free Time Activities", "question": "What do you like doing in your free time?"},
+    {"id": 10, "topic": "Past Activities", "question": "What did you do last night / on the weekend?"},
+    {"id": 11, "topic": "First School", "question": "Please tell me about your first school?"},
+    {"id": 12, "topic": "Current Room", "question": "Describe the room you are in?"},
+    {"id": 13, "topic": "Journey Today", "question": "Describe your journey here today?"},
+    {"id": 14, "topic": "Clothing & Outfit", "question": "What are you wearing today?"},
+    {"id": 15, "topic": "Feeling Tired", "question": "When do you feel tired?"},
+    {"id": 16, "topic": "Vietnamese Meal", "question": "Describe a typical Vietnamese meal?"},
+    {"id": 17, "topic": "Typical Day", "question": "Describe your typical day?"},
+    {"id": 18, "topic": "Free Time Hobbies", "question": "What do you like to do in your free time?"},
+    {"id": 19, "topic": "Favorite Places", "question": "Describe your favorite places"},
+    {"id": 20, "topic": "Conversation with Mother", "question": "Tell me about the last time you talked with your mother"},
+    {"id": 21, "topic": "Sports in Country", "question": "People like sport in your country"},
+    {"id": 22, "topic": "New House", "question": "What are you looking for in your new house?"},
+    {"id": 23, "topic": "Learning English", "question": "Why are you learning English?"},
+    {"id": 24, "topic": "Work & Profession", "question": "Describe your job"},
+    {"id": 25, "topic": "Food & Cuisine", "question": "What is the food like in your country?"},
+    {"id": 26, "topic": "Stress & Pressure", "question": "When do you feel stressed?"},
+    {"id": 27, "topic": "Travel Interests", "question": "Tell me why you are interested in travel?"},
+    {"id": 28, "topic": "Favorite Books", "question": "Favorite book in your country?"}
 ]
 
-# Prompt chấm CEFR chuẩn Aptis
+# Prompt CEFR chuẩn Aptis Speaking
 APTIS_SYSTEM_PROMPT = """
-Bạn là giám khảo kỳ thi Aptis Speaking (British Council).
-Nhiệm vụ: Đánh giá câu trả lời Speaking Part 1 (thời lượng chuẩn 30 giây).
+Bạn là một giám khảo chấm thi kỳ thi Aptis Speaking (British Council).
+Nhiệm vụ: Lắng nghe trực tiếp file ghi âm của thí sinh trả lời câu hỏi Part 1 (chuẩn thời gian trả lời 30 giây) và đưa ra đánh giá toàn diện theo thang CEFR (A1, A2, B1, B2, C1, C2).
 
-Tiêu chí:
-1. Grammar: Chỉ rõ các lỗi ngữ pháp đã mắc phải và cách sửa cụ thể.
-2. Vocabulary: Đánh giá độ phù hợp, gợi ý từ thay thế band cao hơn.
-3. Fluency: Đánh giá độ trôi chảy, tốc độ nói, khoảng dừng ngập ngừng.
-4. Pronunciation: Nhận xét phát âm từ, âm cuối (ending sounds), trọng âm.
+Yêu cầu tiêu chí chấm:
+1. transcript: Chép lại chính xác lời nói của thí sinh từ file ghi âm.
+2. cefr_band: Bậc điểm tổng thể (A1 | A2 | B1 | B2 | C1).
+3. grammar: Nhận xét lỗi sai ngữ pháp và liệt kê danh sách các câu sai -> câu sửa đúng tương ứng.
+4. vocabulary: Nhận xét vốn từ vựng và gợi ý từ vựng/thành ngữ nâng cao thay thế (better_words).
+5. fluency: Nhận xét độ trôi chảy, nhịp điệu, tốc độ nói và độ ngập ngừng.
+6. pronunciation: Nhận xét về phát âm, trọng âm từ và âm cuối (ending sounds).
+7. general_feedback: Nhận xét động viên, chỉ dẫn ngắn gọn cách cải thiện nhanh nhất.
+8. model_answer: Bài mẫu chuẩn band B2/C1 cho 30 giây (độ dài khoảng 45-60 từ, từ vựng tự nhiên).
 
-Trả về DUY NHẤT định dạng JSON theo đúng schema sau:
+BẮT BUỘC trả về DUY NHẤT một chuỗi JSON hợp lệ theo đúng cấu trúc sau:
 {
-  "transcript": "Lời thoại thí sinh đã nói",
-  "cefr_band": "A1 | A2 | B1 | B2 | C1",
+  "transcript": "...",
+  "cefr_band": "B1",
   "criteria": {
     "grammar": {
-      "score": "A2/B1/B2...",
-      "comment": "Nhận xét chi tiết ngữ pháp",
-      "corrections": ["Lỗi -> Sửa"]
+      "score": "B1",
+      "comment": "...",
+      "corrections": ["Lỗi sai -> Cách sửa đúng"]
     },
     "vocabulary": {
-      "score": "A2/B1/B2...",
-      "comment": "Nhận xét chi tiết từ vựng",
-      "better_words": ["Từ cũ -> Từ nâng cao"]
+      "score": "B1",
+      "comment": "...",
+      "better_words": ["Từ đơn giản -> Từ nâng cao hơn"]
     },
     "fluency": {
-      "score": "A2/B1/B2...",
-      "comment": "Nhận xét độ lưu loát"
+      "score": "A2",
+      "comment": "..."
     },
     "pronunciation": {
-      "score": "A2/B1/B2...",
-      "comment": "Nhận xét phát âm"
+      "score": "B1",
+      "comment": "..."
     }
   },
-  "general_feedback": "Lời khuyên tổng quan ngắn gọn",
-  "model_answer": "Câu trả lời mẫu B2/C1 cho 30s (khoảng 45-60 từ)"
+  "general_feedback": "...",
+  "model_answer": "..."
 }
 """
 
-def evaluate_audio(audio_bytes: bytes, question_text: str):
-    client = genai.Client(api_key=GEMINI_API_KEY)
+def evaluate_audio(audio_bytes: bytes, question_text: str, api_key: str):
+    client = genai.Client(api_key=api_key)
     
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio:
         temp_audio.write(audio_bytes)
@@ -104,12 +129,11 @@ def evaluate_audio(audio_bytes: bytes, question_text: str):
     try:
         audio_file = client.files.upload(file=temp_audio_path)
         
-        # Dùng model flash-lite với hạn mức 500 RPD
         response = client.models.generate_content(
             model="gemini-3.5-flash-lite",
             contents=[
                 audio_file,
-                f"Question: {question_text}\nHãy phân tích file ghi âm và chấm điểm theo tiêu chí Aptis."
+                f"Aptis Part 1 Question: {question_text}\nHãy nghe và đánh giá chi tiết bài nói theo chuẩn CEFR."
             ],
             config=types.GenerateContentConfig(
                 system_instruction=APTIS_SYSTEM_PROMPT,
@@ -121,68 +145,90 @@ def evaluate_audio(audio_bytes: bytes, question_text: str):
         if os.path.exists(temp_audio_path):
             os.remove(temp_audio_path)
 
-# --- Giao diện học viên ---
-st.title("🎙️ Luyện thi Speaking Aptis Part 1")
-st.caption("Chấm điểm tự động theo tiêu chuẩn British Council CEFR")
+# --- KHỞI TẠO STATE ---
+if "current_idx" not in st.session_state:
+    st.session_state.current_idx = 0
 
-# Thanh bên chỉ để chọn câu hỏi
+# --- SIDEBAR ---
 with st.sidebar:
-    st.header("📚 Chọn câu hỏi")
-    q_titles = [f"Câu {i+1}: {q['topic']}" for i, q in enumerate(QUESTIONS)]
-    selected_idx = st.selectbox("Danh sách 28 câu hỏi:", range(len(QUESTIONS)), format_func=lambda x: q_titles[x])
-    st.session_state.current_q_idx = selected_idx
+    st.image("https://img.icons8.com/clouds/200/microphone.png", width=110)
+    st.title("Aptis Speaking")
+    st.caption("Bộ đề ôn tập Part 1 tự động")
+    
+    st.markdown("---")
+    if not GEMINI_API_KEY:
+        input_key = st.text_input("🔑 Nhập Gemini API Key:", type="password")
+        if input_key:
+            GEMINI_API_KEY = input_key
+            
+    st.subheader("📋 Chọn câu hỏi luyện tập")
+    options = [f"Câu {q['id']}: {q['topic']}" for q in QUESTIONS]
+    selected_option = st.selectbox(
+        "Danh sách 28 câu hỏi Part 1:",
+        options=options,
+        index=st.session_state.current_idx
+    )
+    st.session_state.current_idx = options.index(selected_option)
     
     st.markdown("---")
     st.markdown("""
-    **Hướng dẫn làm bài:**
-    1. Đọc câu hỏi ở bảng bên phải.
-    2. Bấm vào biểu tượng **Micro** để ghi âm.
-    3. Nói câu trả lời trong khoảng **30 giây**.
-    4. Bấm lại micro để dừng, sau đó bấm **🚀 Chấm điểm ngay**.
+    **💡 Hướng dẫn 3 bước cực dễ:**
+    1. Bấm vào biểu tượng **Micro** 🎙️ để bắt đầu nói.
+    2. Trả lời câu hỏi trong khoảng **30 giây**.
+    3. Bấm lại micro để dừng, rồi bấm **🚀 Chấm điểm ngay**.
     """)
 
-current_q = QUESTIONS[st.session_state.current_q_idx]
-col_left, col_right = st.columns([1, 1], gap="large")
+# --- GIAO DIỆN CHÍNH ---
+current_q = QUESTIONS[st.session_state.current_idx]
 
-with col_left:
-    st.subheader(f"📌 Chủ đề: {current_q['topic']}")
-    st.info(f"**Question:** {current_q['question']}")
+st.markdown('<div class="main-title">🎙️ Luyện thi Speaking Aptis Part 1</div>', unsafe_allow_html=True)
+st.write("Hệ thống chấm điểm phát âm, ngữ pháp, từ vựng và độ trôi chảy theo khung chuẩn Châu Âu CEFR.")
+
+col_main, col_res = st.columns([1, 1], gap="large")
+
+with col_main:
+    st.markdown(f"### 🎯 Chủ đề: **{current_q['topic']}**")
+    st.markdown(f'<div class="question-box">❓ {current_q["question"]}</div>', unsafe_allow_html=True)
     
-    st.markdown("### ⏱️ Thu âm câu trả lời (30 giây)")
+    st.markdown("#### ⏱️ Thu âm câu trả lời (Khoảng 30 giây)")
+    st.caption("Nhấn vào biểu tượng Micro để ghi âm:")
+    
     audio_bytes = audio_recorder(
         text="",
-        recording_color="#e83e8c",
-        neutral_color="#6aa36f",
+        recording_color="#EF4444",
+        neutral_color="#3B82F6",
         icon_size="3x",
         pause_threshold=30.0
     )
     
     if audio_bytes:
-        st.success("✅ Đã ghi âm xong!")
+        st.success("✅ Đã ghi âm thành công! Bạn có thể nghe lại bên dưới:")
         st.audio(audio_bytes, format="audio/wav")
         
         btn_eval = st.button("🚀 Chấm điểm ngay với AI", type="primary", use_container_width=True)
         if btn_eval:
-            if GEMINI_API_KEY == "AIzaSy..." or not GEMINI_API_KEY:
-                st.error("⚠️ Bạn chưa dán GEMINI_API_KEY vào đầu file app.py!")
+            if not GEMINI_API_KEY:
+                st.error("⚠️ Vui lòng nhập hoặc cấu hình GEMINI_API_KEY để AI chấm điểm!")
             else:
-                with st.spinner("AI đang lắng nghe và chấm điểm..."):
+                with st.spinner("⏳ Giám khảo AI đang lắng nghe và phân tích bài nói của bạn..."):
                     try:
-                        result = evaluate_audio(audio_bytes, current_q['question'])
-                        st.session_state.last_result = result
+                        result = evaluate_audio(audio_bytes, current_q["question"], GEMINI_API_KEY)
+                        st.session_state[f"result_{current_q['id']}"] = result
                     except Exception as e:
-                        st.error(f"Đã có lỗi xảy ra: {str(e)}")
+                        st.error(f"Đã có lỗi xảy ra trong quá trình chấm: {str(e)}")
 
-with col_right:
-    st.subheader("📊 Kết quả chấm điểm")
-    if "last_result" in st.session_state:
-        res = st.session_state.last_result
+with col_res:
+    st.markdown("### 📊 Kết quả đánh giá chi tiết")
+    
+    active_result_key = f"result_{current_q['id']}"
+    if active_result_key in st.session_state:
+        res = st.session_state[active_result_key]
         
-        band = res.get("cefr_band", "N/A")
-        st.metric(label="Ước tính trình độ CEFR", value=f"{band}")
+        band = res.get("cefr_band", "B1")
+        st.metric(label="🏆 Ước tính trình độ (CEFR Band)", value=f"Band {band}")
         
-        with st.expander("📝 Đoạn văn đã nói (Transcript)", expanded=True):
-            st.write(res.get("transcript", ""))
+        with st.expander("📝 Lời thoại bạn đã nói (Transcript)", expanded=True):
+            st.write(res.get("transcript", "Không nghe rõ giọng nói."))
             
         criteria = res.get("criteria", {})
         c1, c2 = st.columns(2)
@@ -191,7 +237,7 @@ with col_right:
             st.write(criteria.get('grammar', {}).get('comment', ''))
             corrections = criteria.get('grammar', {}).get('corrections', [])
             if corrections:
-                st.caption("Lỗi cần sửa:")
+                st.caption("Các câu cần sửa:")
                 for item in corrections:
                     st.markdown(f"- `{item}`")
                     
@@ -203,16 +249,17 @@ with col_right:
             st.write(criteria.get('vocabulary', {}).get('comment', ''))
             better_words = criteria.get('vocabulary', {}).get('better_words', [])
             if better_words:
-                st.caption("Từ vựng nâng cao nên dùng:")
+                st.caption("Gợi ý từ vựng hay hơn:")
                 for w in better_words:
                     st.markdown(f"- `{w}`")
-
+                    
             st.markdown(f"**🔊 Phát âm ({criteria.get('pronunciation', {}).get('score', '')})**")
             st.write(criteria.get('pronunciation', {}).get('comment', ''))
             
         st.markdown("---")
-        st.markdown(f"**💡 Nhận xét tổng quan:** {res.get('general_feedback', '')}")
-        with st.expander("🌟 Câu trả lời mẫu chuẩn Band B2/C1"):
+        st.info(f"**💡 Lời khuyên của giám khảo:** {res.get('general_feedback', '')}")
+        
+        with st.expander("🌟 Câu trả lời tham khảo chuẩn Band B2/C1", expanded=False):
             st.write(res.get("model_answer", ""))
     else:
-        st.info("Hãy bấm micro để ghi âm và bấm nút chấm điểm để xem kết quả tại đây.")
+        st.info("👈 Chưa có bài chấm. Hãy bấm vào Micro ở cột bên trái để trả lời và nhấn nút chấm điểm!")
