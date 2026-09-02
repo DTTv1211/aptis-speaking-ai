@@ -16,9 +16,9 @@ from streamlit.errors import StreamlitSecretNotFoundError
 # CẤU HÌNH API KEY
 # ==============================================================================
 # .streamlit/secrets.toml (không commit file chứa key thật):
-# GEMINI_MODEL = "gemini-3.5-flash"
 # GEMINI_API_KEYS = ["key-project-1", "key-project-2", "key-project-3"]
 DEFAULT_KEY = ""
+GEMINI_MODEL = "gemini-3.5-flash-lite"
 
 
 def _get_secret(name, default=None):
@@ -67,10 +67,6 @@ def _load_api_keys():
 
 
 GEMINI_API_KEYS = _load_api_keys()
-GEMINI_MODEL = _get_secret(
-    "GEMINI_MODEL",
-    os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
-)
 # Gemini nhận tối đa 20 MB cho toàn bộ request inline. Dành 2 MB cho prompt,
 # schema và phần đóng gói; phần còn lại được chia động giữa audio và ảnh.
 # Không dùng ngưỡng audio 5 MB cũ vì một bản WAV dài có thể vượt ngưỡng đó dù
@@ -816,7 +812,7 @@ def _api_failure_message(failed_codes) -> str:
         return (
             "Gemini đang quá tải hoặc tạm thời không khả dụng"
             f"{detail}. Đây không phải thông báo hết quota; ứng dụng đã tự thử lại "
-            "với backoff. Hãy đợi một lúc rồi chấm lại hoặc đổi sang model Flash khác."
+            "với backoff. Hãy đợi một lúc rồi chấm lại."
         )
     if any(code in {401, 403} for code in codes):
         return (
