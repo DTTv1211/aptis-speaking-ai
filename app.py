@@ -66,6 +66,10 @@ GEMINI_MODEL = st.secrets.get(
 # tổng payload (kể cả phần phình ra khi mã hóa) ở mức an toàn.
 MAX_INLINE_AUDIO_BYTES = 5 * 1024 * 1024
 MAX_IMAGE_BYTES = 4 * 1024 * 1024
+# 4096 token dễ làm JSON bị cắt giữa chừng với bài nói 45-120 giây vì response
+# còn chứa transcript và toàn bộ năm tiêu chí. Đây chỉ là trần, không buộc model
+# phải dùng hết số token.
+MAX_ASSESSMENT_OUTPUT_TOKENS = 16_384
 
 st.set_page_config(
     page_title="Aptis Speaking Coach - APTISPRO Rubric",
@@ -311,7 +315,8 @@ TRANSCRIPTION_SCHEMA = {
         "transcript": {"type": "string"},
         "unclear_segments": {
             "type": "array",
-            "items": {"type": "string"}
+            "items": {"type": "string"},
+            "maxItems": 5
         }
     },
     "required": ["status", "transcript", "unclear_segments"]
@@ -320,7 +325,11 @@ TRANSCRIPTION_SCHEMA = {
 BASE_CRITERION_PROPERTIES = {
     "score": {"type": "string", "enum": SCORE_VALUES},
     "comment": {"type": "string"},
-    "evidence": {"type": "array", "items": {"type": "string"}}
+    "evidence": {
+        "type": "array",
+        "items": {"type": "string"},
+        "maxItems": 3
+    }
 }
 
 ASSESSMENT_SCHEMA = {
@@ -354,7 +363,8 @@ ASSESSMENT_SCHEMA = {
                                     "explanation": {"type": "string"}
                                 },
                                 "required": ["original", "correction", "explanation"]
-                            }
+                            },
+                            "maxItems": 5
                         }
                     },
                     "required": ["score", "comment", "evidence", "corrections"]
@@ -373,7 +383,8 @@ ASSESSMENT_SCHEMA = {
                                     "reason": {"type": "string"}
                                 },
                                 "required": ["original", "suggestion", "reason"]
-                            }
+                            },
+                            "maxItems": 5
                         }
                     },
                     "required": ["score", "comment", "evidence", "better_words"]
@@ -404,7 +415,8 @@ ASSESSMENT_SCHEMA = {
                     "guidance": {"type": "string"}
                 },
                 "required": ["stage", "guidance"]
-            }
+            },
+            "maxItems": 4
         }
     },
     "required": [
@@ -414,8 +426,20 @@ ASSESSMENT_SCHEMA = {
 }
 
 
+def _response_finish_reason(response) -> str:
+    candidates = getattr(response, "candidates", None) or []
+    if not candidates:
+        return ""
+
+    finish_reason = getattr(candidates[0], "finish_reason", None)
+    if finish_reason is None:
+        return ""
+    reason_value = getattr(finish_reason, "value", finish_reason)
+    return str(reason_value).rsplit(".", 1)[-1].upper()
+
+
 def _parse_json_response(response):
-    """Đọc structured output và báo lỗi rõ ràng nếu API không trả nội dung."""
+    """Đọc structured output và không để lộ JSONDecodeError khó hiểu ra UI."""
     parsed = getattr(response, "parsed", None)
     if isinstance(parsed, dict):
         return parsed
@@ -425,7 +449,18 @@ def _parse_json_response(response):
     response_text = getattr(response, "text", None)
     if not response_text:
         raise ValueError("Mô hình không trả về nội dung để chấm.")
-    return json.loads(response_text)
+    try:
+        return json.loads(response_text)
+    except json.JSONDecodeError:
+        if _response_finish_reason(response) == "MAX_TOKENS":
+            raise ValueError(
+                "Phản hồi chấm điểm bị cắt do đạt giới hạn đầu ra. "
+                "Hãy bấm chấm lại; bản ghi âm vẫn còn nguyên."
+            ) from None
+        raise ValueError(
+            "Gemini trả về kết quả JSON không hoàn chỉnh. "
+            "Hãy bấm chấm lại sau ít giây."
+        ) from None
 
 
 def _get_wav_duration(audio_bytes: bytes):
@@ -708,7 +743,7 @@ hướng dẫn cách mở/phát triển/kết ý ở dạng gạch đầu dòng 
                 response_schema=ASSESSMENT_SCHEMA,
                 temperature=0.0,
                 candidate_count=1,
-                max_output_tokens=4096
+                max_output_tokens=MAX_ASSESSMENT_OUTPUT_TOKENS
             )
         )
 
