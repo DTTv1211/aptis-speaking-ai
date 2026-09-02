@@ -8,9 +8,9 @@ import wave
 from html import escape
 from pathlib import Path
 import httpx
-from audio_recorder_streamlit import audio_recorder
 from google import genai
 from google.genai import errors, types
+from streamlit.errors import StreamlitSecretNotFoundError
 
 # ==============================================================================
 # CẤU HÌNH API KEY
@@ -19,6 +19,14 @@ from google.genai import errors, types
 # GEMINI_MODEL = "gemini-3.5-flash"
 # GEMINI_API_KEYS = ["key-project-1", "key-project-2", "key-project-3"]
 DEFAULT_KEY = ""
+
+
+def _get_secret(name, default=None):
+    """Cho phép chạy chỉ bằng environment variable khi chưa có secrets.toml."""
+    try:
+        return st.secrets.get(name, default)
+    except StreamlitSecretNotFoundError:
+        return default
 
 
 def _normalize_api_keys(raw_keys):
@@ -43,7 +51,7 @@ def _normalize_api_keys(raw_keys):
 def _load_api_keys():
     # Ưu tiên danh sách trong Streamlit Secrets. Hai biến đơn bên dưới chỉ để
     # tương thích với cấu hình cũ và chạy local bằng environment variable.
-    secret_keys = _normalize_api_keys(st.secrets.get("GEMINI_API_KEYS", []))
+    secret_keys = _normalize_api_keys(_get_secret("GEMINI_API_KEYS", []))
     if secret_keys:
         return secret_keys
 
@@ -51,7 +59,7 @@ def _load_api_keys():
     if environment_keys:
         return environment_keys
 
-    legacy_key = st.secrets.get(
+    legacy_key = _get_secret(
         "GEMINI_API_KEY",
         os.getenv("GEMINI_API_KEY", DEFAULT_KEY)
     )
@@ -59,14 +67,19 @@ def _load_api_keys():
 
 
 GEMINI_API_KEYS = _load_api_keys()
-GEMINI_MODEL = st.secrets.get(
+GEMINI_MODEL = _get_secret(
     "GEMINI_MODEL",
     os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 )
-# Part 3 gửi 2 ảnh + audio inline trong cùng một request. Các ngưỡng này giữ
-# tổng payload (kể cả phần phình ra khi mã hóa) ở mức an toàn.
-MAX_INLINE_AUDIO_BYTES = 5 * 1024 * 1024
+# Gemini nhận tối đa 20 MB cho toàn bộ request inline. Dành 2 MB cho prompt,
+# schema và phần đóng gói; phần còn lại được chia động giữa audio và ảnh.
+# Không dùng ngưỡng audio 5 MB cũ vì một bản WAV dài có thể vượt ngưỡng đó dù
+# vẫn nằm rất xa giới hạn thật của Gemini.
+MAX_INLINE_MEDIA_BYTES = 18 * 1024 * 1024
 MAX_IMAGE_BYTES = 4 * 1024 * 1024
+# Retry có backoff giúp các lỗi 429/503 tạm thời không làm bài chấm thất bại ngay.
+GEMINI_RETRY_ATTEMPTS = 4
+GEMINI_REQUEST_TIMEOUT_MS = 180_000
 # 4096 token dễ làm JSON bị cắt giữa chừng với bài nói 45-120 giây vì response
 # còn chứa transcript và toàn bộ năm tiêu chí. Đây chỉ là trần, không buộc model
 # phải dùng hết số token.
@@ -669,22 +682,24 @@ def _download_relevant_images(image_source):
 
     image_required = bool(image_urls)
     if not image_required:
-        return [], False, False
+        return [], False, False, 0
 
     image_parts = []
+    total_image_bytes = 0
     try:
         for image_url in image_urls:
             image_bytes, mime_type = _fetch_image_bytes(image_url)
+            total_image_bytes += len(image_bytes)
             image_parts.append(
                 types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
             )
     except (httpx.HTTPError, ValueError):
-        return [], False, True
+        return [], False, True, 0
 
     # Không gửi một nửa cặp ảnh Part 3 vì model có thể tưởng đó là toàn bộ đề.
     if len(image_parts) != len(image_urls):
-        return [], False, True
-    return image_parts, True, True
+        return [], False, True, 0
+    return image_parts, True, True, total_image_bytes
 
 
 def _keep_only_grounded_items(assessment: dict, transcript: str):
@@ -766,13 +781,16 @@ def _api_error_code(error):
         return 0
 
 
-def _should_failover(error) -> bool:
-    """Chỉ đổi project với lỗi quota, key/quyền hoặc lỗi dịch vụ tạm thời."""
+def _should_try_next_key(error) -> bool:
+    """Chỉ đổi key khi key/project khác thực sự có thể giải quyết lỗi."""
     if not isinstance(error, errors.APIError):
         return False
 
     code = _api_error_code(error)
-    if code in {401, 403, 408, 429, 500, 502, 503, 504}:
+    # 429 là quota/rate limit theo project; key thuộc project khác có thể dùng
+    # được. 401/403 là lỗi key/quyền. 5xx/408 là lỗi dịch vụ/kết nối nên đã được
+    # SDK retry với backoff và đổi API key thường không có tác dụng.
+    if code in {401, 403, 429}:
         return True
 
     # Gemini Developer API có thể trả 400 cho API key không hợp lệ. Không xoay
@@ -781,6 +799,36 @@ def _should_failover(error) -> bool:
     return code == 400 and any(marker in message for marker in (
         "api key not valid", "api_key_invalid", "invalid api key"
     ))
+
+
+def _api_failure_message(failed_codes) -> str:
+    codes = [code for code in failed_codes if code]
+    code_summary = ", ".join(str(code) for code in codes)
+    detail = f" (HTTP: {code_summary})" if code_summary else ""
+
+    if codes and all(code == 429 for code in codes):
+        return (
+            "Gemini báo vượt rate limit/quota (HTTP 429). Hãy chờ rồi thử lại. "
+            "Nhiều API key trong cùng một Google Cloud project vẫn dùng chung quota; "
+            "chỉ key thuộc project khác mới có hạn mức độc lập."
+        )
+    if any(code in {500, 502, 503, 504} for code in codes):
+        return (
+            "Gemini đang quá tải hoặc tạm thời không khả dụng"
+            f"{detail}. Đây không phải thông báo hết quota; ứng dụng đã tự thử lại "
+            "với backoff. Hãy đợi một lúc rồi chấm lại hoặc đổi sang model Flash khác."
+        )
+    if any(code in {401, 403} for code in codes):
+        return (
+            "Gemini từ chối API key hoặc quyền truy cập"
+            f"{detail}. Hãy kiểm tra key, project và quyền dùng model."
+        )
+    if any(code in {408, 499} for code in codes):
+        return (
+            "Yêu cầu chấm bị gián đoạn hoặc hết thời gian chờ"
+            f"{detail}. Bản ghi vẫn còn; hãy bấm chấm lại."
+        )
+    return f"Gemini không thể xử lý yêu cầu{detail}. Hãy thử lại sau."
 
 
 def _generate_with_key_failover(api_keys, generate_request):
@@ -793,10 +841,16 @@ def _generate_with_key_failover(api_keys, generate_request):
     for attempt_number, key_index in enumerate(state.candidate_indices(), start=1):
         client = genai.Client(
             api_key=api_keys[key_index],
-            # Một lần gọi trên mỗi key. Khi lỗi quota, ứng dụng chuyển key ngay
-            # thay vì để SDK tự retry nhiều lần trên project đã hết hạn mức.
             http_options=types.HttpOptions(
-                retry_options=types.HttpRetryOptions(attempts=1)
+                timeout=GEMINI_REQUEST_TIMEOUT_MS,
+                retry_options=types.HttpRetryOptions(
+                    attempts=GEMINI_RETRY_ATTEMPTS,
+                    initial_delay=1.0,
+                    max_delay=8.0,
+                    exp_base=2.0,
+                    jitter=1.0,
+                    http_status_codes=[408, 429, 500, 502, 503, 504]
+                )
             )
         )
         try:
@@ -805,12 +859,14 @@ def _generate_with_key_failover(api_keys, generate_request):
             return response, key_index, attempt_number
         except errors.APIError as error:
             code = _api_error_code(error)
-            if not _should_failover(error):
+            failed_codes.append(code)
+            if not _should_try_next_key(error):
+                if code in {408, 499, 500, 502, 503, 504}:
+                    raise RuntimeError(_api_failure_message(failed_codes)) from None
                 raise RuntimeError(
                     f"Gemini từ chối yêu cầu (HTTP {code or 'không xác định'}). "
                     "Hãy kiểm tra tên model và cấu hình request."
                 ) from None
-            failed_codes.append(code)
             state.mark_failed(key_index)
         except httpx.HTTPError:
             # Lỗi mạng cục bộ không liên quan đến project/API key.
@@ -818,12 +874,7 @@ def _generate_with_key_failover(api_keys, generate_request):
         finally:
             client.close()
 
-    code_summary = ", ".join(str(code) for code in failed_codes if code)
-    detail = f" (HTTP: {code_summary})" if code_summary else ""
-    raise RuntimeError(
-        "Tất cả API key đã hết quota, không hợp lệ hoặc tạm thời không khả dụng"
-        f"{detail}."
-    )
+    raise RuntimeError(_api_failure_message(failed_codes))
 
 
 def evaluate_audio(
@@ -836,12 +887,23 @@ def evaluate_audio(
 ):
     if not audio_bytes:
         raise ValueError("Không có dữ liệu âm thanh.")
-    if len(audio_bytes) > MAX_INLINE_AUDIO_BYTES:
-        raise ValueError("Bản ghi vượt quá giới hạn 5 MB. Hãy thu một câu trả lời ngắn hơn.")
+    if len(audio_bytes) > MAX_INLINE_MEDIA_BYTES:
+        raise ValueError(
+            "Bản ghi vượt quá 18 MB nên không thể gửi inline an toàn cho Gemini. "
+            "Hãy thu ngắn hơn hoặc giảm chất lượng ghi âm."
+        )
 
     duration_seconds = _get_wav_duration(audio_bytes)
     audio_part = types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav")
-    image_parts, image_available, image_required = _download_relevant_images(image_source)
+    image_parts, image_available, image_required, total_image_bytes = (
+        _download_relevant_images(image_source)
+    )
+    total_media_bytes = len(audio_bytes) + total_image_bytes
+    if total_media_bytes > MAX_INLINE_MEDIA_BYTES:
+        raise ValueError(
+            "Tổng dung lượng bản ghi và ảnh vượt quá 18 MB nên không thể gửi "
+            "inline an toàn cho Gemini. Hãy thu ngắn hơn."
+        )
     duration_label = "không xác định" if duration_seconds is None else f"{duration_seconds:.2f}"
 
     request_prompt = f"""
@@ -953,9 +1015,11 @@ with st.sidebar:
         if input_key:
             GEMINI_API_KEYS = _normalize_api_keys(input_key)
     else:
-        st.caption(
-            f"🔐 Đã nạp {len(GEMINI_API_KEYS)} API key · Model: {GEMINI_MODEL}"
-        )
+        st.caption(f"🔐 Đã nạp {len(GEMINI_API_KEYS)} API key · Model: {GEMINI_MODEL}")
+        if len(GEMINI_API_KEYS) > 1:
+            st.caption(
+                "Lưu ý: các key cùng một Google Cloud project dùng chung quota."
+            )
             
     if selected_part == "Part 1: Personal Info":
         p1_titles = [f"Câu {q['id']}: {q['topic']}" for q in PART1_QUESTIONS]
@@ -1097,27 +1161,39 @@ with col_left:
         st.session_state["feedback_context"] = feedback_context
 
     st.markdown(f"#### ⏱️ Thu âm câu trả lời (Chuẩn ~{target_time} giây)")
-    audio_bytes = audio_recorder(
-        text="",
-        recording_color="#EF4444",
-        neutral_color="#3B82F6",
-        icon_size="3x",
-        # pause_threshold là thời gian im lặng để tự dừng, không phải độ dài bài nói.
-        pause_threshold=5.0,
+    audio_file = st.audio_input(
+        "Bấm để bắt đầu ghi âm; bấm lại để dừng",
         sample_rate=16_000,
-        key=f"recorder_{active_item_key}"
+        key=f"recorder_{active_item_key}",
+        help=(
+            "Ghi WAV mono 16 kHz, phù hợp nhận diện giọng nói. Không còn giới hạn "
+            "5 MB của ứng dụng cũ."
+        )
     )
+    audio_bytes = audio_file.getvalue() if audio_file is not None else None
 
     if audio_bytes:
         st.success("✅ Đã ghi âm xong! Bạn có thể nghe lại bên dưới:")
         st.audio(audio_bytes, format="audio/wav")
+        duration_preview = _get_wav_duration(audio_bytes)
+        duration_preview_text = (
+            "không xác định"
+            if duration_preview is None
+            else f"{duration_preview:.1f} giây"
+        )
+        st.caption(
+            f"Độ dài: {duration_preview_text} · Dung lượng: "
+            f"{len(audio_bytes) / (1024 * 1024):.2f} MB"
+        )
         
         btn_eval = st.button("🚀 Chấm điểm APTISPRO ngay", type="primary", use_container_width=True)
         if btn_eval:
             if not GEMINI_API_KEYS:
                 st.error("⚠️ Vui lòng cấu hình GEMINI_API_KEYS trong Streamlit Secrets!")
             else:
-                with st.spinner("AI đang chép lời và chấm trong một request duy nhất..."):
+                with st.spinner(
+                    "AI đang chép lời và chấm (thường 30–90 giây; lỗi tạm thời sẽ tự thử lại)..."
+                ):
                     try:
                         result = evaluate_audio(
                             audio_bytes,
