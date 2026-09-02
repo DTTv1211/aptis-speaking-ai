@@ -531,6 +531,312 @@ def _question_box_text(question_text: str) -> str:
     return escape(str(question_text)).replace("\n", "<br>")
 
 
+EASY_VOCABULARY_BANK = [
+    {
+        "keywords": (
+            "money", "save", "savings", "buy", "shopping", "shop", "market",
+            "store", "gift", "expensive", "possessions"
+        ),
+        "words": [
+            ("save money", "tiết kiệm tiền"),
+            ("cost", "có giá / chi phí"),
+            ("cheap", "rẻ"),
+            ("expensive", "đắt"),
+            ("buy online", "mua trực tuyến"),
+            ("local shop", "cửa hàng gần nơi ở")
+        ]
+    },
+    {
+        "keywords": (
+            "family", "friend", "friends", "parent", "child", "children", "team",
+            "someone", "older", "younger", "generation", "visitor", "helped"
+        ),
+        "words": [
+            ("kind", "tốt bụng"),
+            ("friendly", "thân thiện"),
+            ("helpful", "hay giúp đỡ"),
+            ("spend time with", "dành thời gian với"),
+            ("help each other", "giúp đỡ lẫn nhau"),
+            ("get on well with", "hòa hợp với")
+        ]
+    },
+    {
+        "keywords": ("yourself", "personal introduction"),
+        "words": [
+            ("My name is…", "tên tôi là…"),
+            ("I am from…", "tôi đến từ…"),
+            ("I live in…", "tôi sống ở…"),
+            ("I work / study at…", "tôi làm việc / học tại…"),
+            ("I like…", "tôi thích…"),
+            ("in my free time", "trong thời gian rảnh")
+        ]
+    },
+    {
+        "keywords": (
+            "food", "eat", "eating", "cook", "meal", "breakfast", "diet",
+            "restaurant"
+        ),
+        "words": [
+            ("delicious", "ngon"),
+            ("healthy", "tốt cho sức khỏe"),
+            ("fresh", "tươi"),
+            ("cook at home", "nấu ăn ở nhà"),
+            ("eat out", "ăn ở ngoài"),
+            ("favourite dish", "món ăn yêu thích")
+        ]
+    },
+    {
+        "keywords": (
+            "travel", "travelling", "traveling", "journey", "holiday", "transport",
+            "car", "train", "plane", "bus", "new city", "new place", "got lost",
+            "navigation"
+        ),
+        "words": [
+            ("go by bus / car", "đi bằng xe buýt / ô tô"),
+            ("on the way", "trên đường đi"),
+            ("arrive at", "đến một nơi"),
+            ("near / far", "gần / xa"),
+            ("visit a place", "đến thăm một nơi"),
+            ("get lost", "bị lạc đường")
+        ]
+    },
+    {
+        "keywords": (
+            "nature", "weather", "season", "mountain", "beach", "seaside",
+            "countryside", "forest", "garden", "plant", "natural beauty",
+            "environment"
+        ),
+        "words": [
+            ("sunny / rainy", "có nắng / có mưa"),
+            ("fresh air", "không khí trong lành"),
+            ("quiet", "yên tĩnh"),
+            ("beautiful", "đẹp"),
+            ("spend time outside", "dành thời gian ngoài trời"),
+            ("protect nature", "bảo vệ thiên nhiên")
+        ]
+    },
+    {
+        "keywords": (
+            "sport", "sports", "exercise", "game", "dance", "dancing", "climb",
+            "activity", "activities", "free time", "hobby", "relax"
+        ),
+        "words": [
+            ("play sports", "chơi thể thao"),
+            ("do exercise", "tập thể dục"),
+            ("in my free time", "trong thời gian rảnh"),
+            ("with my friends", "cùng bạn bè"),
+            ("good for my health", "tốt cho sức khỏe"),
+            ("feel relaxed", "cảm thấy thư giãn")
+        ]
+    },
+    {
+        "keywords": (
+            "art", "music", "festival", "event", "events", "creative", "creativity",
+            "exhibition"
+        ),
+        "words": [
+            ("listen to music", "nghe nhạc"),
+            ("play music", "chơi nhạc"),
+            ("colourful", "nhiều màu sắc"),
+            ("interesting", "thú vị"),
+            ("take part in", "tham gia"),
+            ("enjoy the event", "tận hưởng sự kiện")
+        ]
+    },
+    {
+        "keywords": (
+            "school", "study", "studying", "job", "work", "learn", "question",
+            "presentation", "public speaking", "library", "english"
+        ),
+        "words": [
+            ("study at", "học tại"),
+            ("practise every day", "luyện tập mỗi ngày"),
+            ("learn new things", "học điều mới"),
+            ("ask for help", "nhờ giúp đỡ"),
+            ("work with others", "làm việc cùng người khác"),
+            ("improve my skills", "cải thiện kỹ năng")
+        ]
+    },
+    {
+        "keywords": (
+            "book", "books", "read", "reading", "film", "cinema", "television",
+            "programme", "news", "internet", "technology", "video",
+            "advertisement", "letter"
+        ),
+        "words": [
+            ("watch a film", "xem phim"),
+            ("read a book", "đọc sách"),
+            ("use the Internet", "sử dụng Internet"),
+            ("find information", "tìm thông tin"),
+            ("learn from", "học được từ"),
+            ("keep in touch", "giữ liên lạc")
+        ]
+    },
+    {
+        "keywords": ("animal", "pet", "horse", "camel", "snake"),
+        "words": [
+            ("take care of", "chăm sóc"),
+            ("feed", "cho ăn"),
+            ("friendly", "thân thiện"),
+            ("dangerous", "nguy hiểm"),
+            ("live in", "sống ở"),
+            ("favourite animal", "động vật yêu thích")
+        ]
+    },
+    {
+        "keywords": (
+            "home", "house", "room", "bedroom", "building", "hometown", "place",
+            "places", "country", "community", "decorate", "wearing", "clothing",
+            "crowded"
+        ),
+        "words": [
+            ("near my home", "gần nhà tôi"),
+            ("live in", "sống ở"),
+            ("there is / there are", "có…"),
+            ("comfortable", "thoải mái"),
+            ("quiet / crowded", "yên tĩnh / đông đúc"),
+            ("next to", "bên cạnh")
+        ]
+    },
+    {
+        "keywords": ("future", "plan", "planning"),
+        "words": [
+            ("want to", "muốn làm gì"),
+            ("plan to", "dự định làm gì"),
+            ("hope to", "hy vọng làm gì"),
+            ("next year", "năm tới"),
+            ("in the future", "trong tương lai"),
+            ("because it is…", "bởi vì nó…")
+        ]
+    },
+    {
+        "keywords": ("memory", "memories"),
+        "words": [
+            ("I remember…", "tôi nhớ…"),
+            ("last year", "năm ngoái"),
+            ("with my…", "cùng với… của tôi"),
+            ("It happened at…", "việc đó xảy ra tại…"),
+            ("special", "đặc biệt"),
+            ("I felt happy", "tôi cảm thấy vui")
+        ]
+    },
+    {
+        "keywords": (
+            "feel", "stressed", "tired", "busy", "hurry", "challenge", "achieve",
+            "goal", "succeed", "decision", "choice", "good news", "laughed",
+            "humour", "rule"
+        ),
+        "words": [
+            ("happy", "vui"),
+            ("nervous", "lo lắng"),
+            ("tired", "mệt"),
+            ("proud", "tự hào"),
+            ("at first", "lúc đầu"),
+            ("keep trying", "tiếp tục cố gắng")
+        ]
+    },
+    {
+        "keywords": ("typical day", "yesterday", "last night", "morning", "daily"),
+        "words": [
+            ("wake up", "thức dậy"),
+            ("go to work / school", "đi làm / đi học"),
+            ("come home", "về nhà"),
+            ("then", "sau đó"),
+            ("after that", "sau việc đó"),
+            ("go to bed", "đi ngủ")
+        ]
+    }
+]
+
+DEFAULT_EASY_VOCABULARY = [
+    ("good / bad", "tốt / không tốt"),
+    ("big / small", "lớn / nhỏ"),
+    ("interesting", "thú vị"),
+    ("important", "quan trọng"),
+    ("I like…", "tôi thích…"),
+    ("I usually…", "tôi thường…")
+]
+
+
+def _keyword_in_text(keyword: str, text: str) -> bool:
+    """Khớp từ/cụm từ hoàn chỉnh để tránh trúng một phần của từ khác."""
+    return bool(re.search(rf"(?<!\w){re.escape(keyword)}(?!\w)", text))
+
+
+def _easy_topic_vocabulary(context_text: str):
+    """Chọn một nhóm từ A1–A2 gần nhất với chủ đề, không gọi API."""
+    context = str(context_text).casefold()
+    best_words = DEFAULT_EASY_VOCABULARY
+    best_score = 0
+    for topic in EASY_VOCABULARY_BANK:
+        score = sum(_keyword_in_text(keyword, context) for keyword in topic["keywords"])
+        if score > best_score:
+            best_score = score
+            best_words = topic["words"]
+    return best_words
+
+
+def _rescue_sentence_frames(speaking_part: str, question_text: str):
+    """Khung câu rất ngắn để bắt đầu nói khi người học bị bí."""
+    question = str(question_text).casefold()
+    is_past = any(marker in question for marker in (
+        "last time", "a time when", "a time you", "yesterday", "last night",
+        "went to", "visited", "received", "gave", "had to"
+    ))
+    is_opinion = any(marker in question for marker in (
+        "why", "do you think", "what do you think", "important", "benefit",
+        "agree", "disagree", "prefer", "how can", "how should"
+    ))
+
+    if speaking_part.startswith("Part 4"):
+        return [
+            ("Mở câu chuyện", "I’m going to talk about…"),
+            ("Thời gian/nơi chốn", "It happened when / at…"),
+            ("Kể tiếp", "First…, then…, after that…"),
+            ("Cảm xúc", "I felt… because…"),
+            ("Nêu ý kiến", "I think… because…")
+        ]
+    if speaking_part.startswith("Part 3") and (
+        "picture" in question or "photograph" in question or "compare" in question
+    ):
+        return [
+            ("Mở hai ảnh", "Both pictures show…"),
+            ("Ảnh thứ nhất", "In the first picture, I can see…"),
+            ("Ảnh thứ hai", "In the second picture, there is / are…"),
+            ("Nêu khác biệt", "The first picture is…, but the second is…"),
+            ("Chọn", "I prefer… because…")
+        ]
+    if speaking_part.startswith("Part 2") and "describe" in question:
+        return [
+            ("Mở ảnh", "In the picture, I can see…"),
+            ("Người", "There is a… / There are some…"),
+            ("Hành động", "He / She is…ing. They are…ing."),
+            ("Nơi chốn", "They are in / at…"),
+            ("Cảm nhận", "The picture looks…")
+        ]
+    if is_past:
+        return [
+            ("Bắt đầu", "Last…, I…"),
+            ("Nơi/người", "I was at… with…"),
+            ("Kể tiếp", "First…, then…, finally…"),
+            ("Cảm xúc", "I felt… because…")
+        ]
+    if is_opinion:
+        return [
+            ("Trả lời", "I think… / I prefer…"),
+            ("Lý do", "The main reason is…"),
+            ("Thêm ý", "Also, …"),
+            ("Ví dụ", "For example, …"),
+            ("Kết", "So, I think…")
+        ]
+    return [
+        ("Trả lời", "I usually… / I like…"),
+        ("Mô tả", "It is… / There is…"),
+        ("Thêm ý", "Also, …"),
+        ("Lý do", "I like it because…")
+    ]
+
+
 def _answer_outline(speaking_part: str, question_text: str):
     """Dàn ý ngắn để người học tự phát triển câu trả lời, không viết hộ bài mẫu."""
     question = question_text.casefold()
@@ -586,7 +892,7 @@ def _answer_outline(speaking_part: str, question_text: str):
             ("Điểm giống", "Nêu một hành động, đối tượng hoặc cảm xúc xuất hiện ở cả hai ảnh."),
             (
                 "Điểm khác",
-                "So sánh người, hành động, nơi chốn và không khí bằng “whereas/by contrast”."
+                "Nói một điểm khác đơn giản: “The first picture is…, but the second is…”"
             ),
             ("Kết", "Chốt điểm khác nổi bật nhất hoặc lựa chọn của bạn nếu phù hợp.")
         ]
@@ -601,23 +907,23 @@ def _answer_outline(speaking_part: str, question_text: str):
 
     if is_past_experience:
         return [
-            ("Trả lời", "Nêu rõ sự việc và thời điểm: “As far as I can remember, it was…”"),
+            ("Trả lời", "Nêu sự việc và thời điểm bằng “Last…, I…”"),
             ("Chi tiết", "Thêm who, where, what happened và một chi tiết cụ thể."),
             ("Kết quả", "Nói kết quả và cảm xúc hoặc điều bạn học được.")
         ]
 
     if is_opinion:
         return [
-            ("Answer", "Trả lời thẳng quan điểm hoặc lựa chọn của bạn."),
-            ("Reason", "Đưa hai lý do khác nhau, tránh lặp lại cùng một ý."),
-            ("Example", "Thêm ví dụ thật: khi nào, ở đâu, với ai hoặc ảnh hưởng cụ thể."),
-            ("Close", "Kết lại bằng một câu khẳng định ngắn.")
+            ("Trả lời", "Nói ngay “I think…” hoặc “I prefer…”"),
+            ("Lý do", "Nêu một lý do bằng “because…”, sau đó thêm một ý bằng “Also, …”"),
+            ("Ví dụ", "Thêm ví dụ thật bằng “For example, …”"),
+            ("Kết", "Nhắc lại lựa chọn hoặc ý kiến trong một câu ngắn.")
         ]
 
     return [
-        ("Answer", "Trả lời trực tiếp bằng một câu đầy đủ."),
-        ("Describe", "Thêm 2–3 chi tiết: who/what, where, when và đặc điểm nổi bật."),
-        ("Reason & feeling", "Giải thích vì sao điều đó quan trọng và cảm xúc của bạn.")
+        ("Trả lời", "Trả lời trực tiếp bằng một câu ngắn."),
+        ("Mô tả", "Thêm 2–3 chi tiết: ai/cái gì, ở đâu, khi nào."),
+        ("Lý do và cảm xúc", "Nói “because…” và thêm một cảm xúc đơn giản.")
     ]
 
 
@@ -1069,6 +1375,7 @@ with col_left:
             unsafe_allow_html=True
         )
         active_question = curr_q["question"]
+        coaching_context = f"{curr_q['topic']} {active_question}"
         active_img = None
         target_time = 30
         active_item_key = f"p1-{curr_q['id']}"
@@ -1086,6 +1393,7 @@ with col_left:
         )
         selected_sub_num = int(sub_idx.split(":")[0].replace("Câu ", "")) - 1
         active_question = curr_p2["questions"][selected_sub_num]
+        coaching_context = " ".join(curr_p2["questions"])
         active_img = curr_p2["image"]
         target_time = 45
         active_item_key = f"p2-{curr_p2['id']}-{selected_sub_num}"
@@ -1112,6 +1420,7 @@ with col_left:
         )
         selected_sub_num = int(sub_idx.split(":")[0].replace("Câu ", "")) - 1
         active_question = curr_p3["questions"][selected_sub_num]
+        coaching_context = " ".join(curr_p3["questions"])
         active_img = curr_p3["images"]
         target_time = 45
         active_item_key = f"p3-{curr_p3['id']}-{selected_sub_num}"
@@ -1124,6 +1433,7 @@ with col_left:
         curr_p4 = PART4_DATA[selected_idx]
         st.markdown(f'<div class="main-title">🧠 Part 4: Chủ đề {curr_p4["id"]}</div>', unsafe_allow_html=True)
         active_question = curr_p4["question"]
+        coaching_context = active_question
         active_img = None
         target_time = 120
         active_item_key = f"p4-{curr_p4['id']}"
@@ -1143,11 +1453,31 @@ with col_left:
             placeholder="Từ khóa: bối cảnh → diễn biến → kết quả → cảm nhận/suy ngẫm"
         )
 
-    with st.expander("💡 Dàn ý gợi ý (không phải bài mẫu)", expanded=False):
-        for outline_title, outline_detail in _answer_outline(selected_part, active_question):
-            st.markdown(f"**{outline_title}:** {outline_detail}")
+    with st.expander("🛟 Khi bí ý: từ dễ và cách nói", expanded=True):
         st.caption(
-            "Hãy thay bằng thông tin và trải nghiệm thật của bạn; không cần học thuộc nguyên câu."
+            "Chỉ cần chọn 3–4 từ phù hợp rồi ghép vào khung câu; không cần dùng hết."
+        )
+        vocabulary_col, frame_col = st.columns(2, gap="medium")
+        with vocabulary_col:
+            st.markdown("**Từ/cụm từ dễ theo chủ đề**")
+            for english_word, vietnamese_meaning in _easy_topic_vocabulary(coaching_context):
+                st.markdown(f"- `{english_word}` — {vietnamese_meaning}")
+        with frame_col:
+            st.markdown("**Khung câu để bắt đầu nói**")
+            for frame_use, sentence_frame in _rescue_sentence_frames(
+                selected_part, active_question
+            ):
+                st.markdown(f"- **{frame_use}:** `{sentence_frame}`")
+
+        st.markdown("**Cách triển khai câu đang chọn**")
+        for outline_number, (outline_title, outline_detail) in enumerate(
+            _answer_outline(selected_part, active_question),
+            start=1
+        ):
+            st.markdown(f"{outline_number}. **{outline_title}:** {outline_detail}")
+        st.caption(
+            "Đây là từ và khung gợi nhớ A1–A2, không phải bài mẫu. Hãy thay bằng "
+            "thông tin thật của bạn."
         )
 
     # Không để kết quả của câu trước xuất hiện dưới một câu hỏi mới.
