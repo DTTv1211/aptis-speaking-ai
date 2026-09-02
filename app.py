@@ -5,6 +5,7 @@ import os
 import re
 import threading
 import wave
+from html import escape
 from pathlib import Path
 import httpx
 from audio_recorder_streamlit import audio_recorder
@@ -100,70 +101,86 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# BỘ ĐỀ PART 1 (28 CÂU) & PART 2 (30 ĐỀ)
+# BỘ ĐỀ PART 1 & PART 2
 # ==============================================================================
 PART1_QUESTIONS = [
-    {"id": 1, "topic": "Family", "question": "Please tell me about your family?"},
-    {"id": 2, "topic": "Personal Introduction", "question": "Please tell me about yourself?"},
-    {"id": 3, "topic": "Hometown & Places", "question": "Tell me about your hometown / the place that you live? / A famous place in your country?"},
-    {"id": 4, "topic": "Travel in Country", "question": "Tell me the best way to travel about around your country?"},
-    {"id": 5, "topic": "Friend & Family Member", "question": "Tell me about your friend / a member in your family"},
-    {"id": 6, "topic": "Weather & Seasons", "question": "What is the weather like today? / What is your favorite season?"},
-    {"id": 7, "topic": "Good Memories", "question": "Please tell me about one of your good memories"},
-    {"id": 8, "topic": "Activities with Friends", "question": "What do you like doing with your friends?"},
-    {"id": 9, "topic": "Free Time Activities", "question": "What do you like doing in your free time?"},
-    {"id": 10, "topic": "Past Activities", "question": "What did you do last night / on the weekend?"},
-    {"id": 11, "topic": "First School", "question": "Please tell me about your first school?"},
-    {"id": 12, "topic": "Current Room", "question": "Describe the room you are in?"},
-    {"id": 13, "topic": "Journey Today", "question": "Describe your journey here today?"},
-    {"id": 14, "topic": "Clothing & Outfit", "question": "What are you wearing today?"},
-    {"id": 15, "topic": "Feeling Tired", "question": "When do you feel tired?"},
-    {"id": 16, "topic": "Vietnamese Meal", "question": "Describe a typical Vietnamese meal?"},
-    {"id": 17, "topic": "Typical Day", "question": "Describe your typical day?"},
-    {"id": 18, "topic": "Free Time Hobbies", "question": "What do you like to do in your free time?"},
-    {"id": 19, "topic": "Favorite Places", "question": "Describe your favorite places"},
-    {"id": 20, "topic": "Conversation with Mother", "question": "Tell me about the last time you talked with your mother"},
-    {"id": 21, "topic": "Sports in Country", "question": "People like sport in your country"},
-    {"id": 22, "topic": "New House", "question": "What are you looking for in your new house?"},
-    {"id": 23, "topic": "Learning English", "question": "Why are you learning English?"},
-    {"id": 24, "topic": "Work & Profession", "question": "Describe your job"},
-    {"id": 25, "topic": "Food & Cuisine", "question": "What is the food like in your country?"},
-    {"id": 26, "topic": "Stress & Pressure", "question": "When do you feel stressed?"},
-    {"id": 27, "topic": "Travel Interests", "question": "Tell me why you are interested in travel?"},
-    {"id": 28, "topic": "Favorite Books", "question": "Favorite book in your country?"}
+    {"id": 1, "topic": "Family", "question": "Please tell me about your family."},
+    {"id": 2, "topic": "Personal Introduction", "question": "Please tell me about yourself."},
+    {"id": 3, "topic": "Hometown", "question": "Please tell me about your hometown."},
+    {"id": 4, "topic": "Famous Place", "question": "Please tell me about a famous place in your country."},
+    {"id": 5, "topic": "Favorite Place", "question": "Please tell me about your favorite place."},
+    {"id": 6, "topic": "Travel in Your Country", "question": "What is the best way to travel around your country?"},
+    {"id": 7, "topic": "Journey Today", "question": "Please tell me about your journey here today."},
+    {"id": 8, "topic": "Friends", "question": "Please tell me about your friends."},
+    {"id": 9, "topic": "Family Member", "question": "Please tell me about a member of your family."},
+    {"id": 10, "topic": "Favorite Film Star", "question": "Who is your favorite film star?"},
+    {"id": 11, "topic": "Favorite Film", "question": "Please tell me about your favorite film."},
+    {"id": 12, "topic": "Weather Today", "question": "What is the weather like today?"},
+    {"id": 13, "topic": "Favorite Season", "question": "What is your favorite time of year?"},
+    {"id": 14, "topic": "Good Memory", "question": "Please tell me about one of your good memories."},
+    {"id": 15, "topic": "Activities with Friends", "question": "What activities do you usually do with your friends?"},
+    {"id": 16, "topic": "Hobby", "question": "Please tell me about your hobby."},
+    {"id": 17, "topic": "Future Plan", "question": "Describe something you are planning to do in the future."},
+    {"id": 18, "topic": "Free Time", "question": "What do you like doing in your free time?"},
+    {"id": 19, "topic": "Yesterday", "question": "What did you do yesterday?"},
+    {"id": 20, "topic": "Last Night", "question": "What did you do last night?"},
+    {"id": 21, "topic": "Television", "question": "Please tell me about the last thing you saw on television."},
+    {"id": 22, "topic": "Advertisement", "question": "Please tell me about the last time you saw an advertisement."},
+    {"id": 23, "topic": "Visiting Friends", "question": "Please tell me about the last time you visited friends."},
+    {"id": 24, "topic": "Cinema", "question": "Tell me about the last time you went to the cinema."},
+    {"id": 25, "topic": "First School", "question": "Please tell me about your first school."},
+    {"id": 26, "topic": "Bedroom", "question": "Please describe your bedroom."},
+    {"id": 27, "topic": "Current Room", "question": "Describe the room you are in now."},
+    {"id": 28, "topic": "Clothing", "question": "What are you wearing today?"},
+    {"id": 29, "topic": "Feeling Tired", "question": "When do you usually feel tired?"},
+    {"id": 30, "topic": "Typical Meal", "question": "Describe a typical meal in your country."},
+    {"id": 31, "topic": "Breakfast", "question": "What do you usually eat for breakfast?"},
+    {"id": 32, "topic": "Typical Day", "question": "Please tell me about your typical day."},
+    {"id": 33, "topic": "Sports", "question": "What sports do people play in your country?"},
+    {"id": 34, "topic": "Reading Habits", "question": "What do people in your country like to read?"},
+    {"id": 35, "topic": "Favorite Book", "question": "Please tell me about your favorite book."},
+    {"id": 36, "topic": "New House", "question": "What are you looking for in a new house?"},
+    {"id": 37, "topic": "Learning English", "question": "Why are you learning English?"},
+    {"id": 38, "topic": "Work", "question": "Please describe your job or studies."},
+    {"id": 39, "topic": "Food", "question": "What is the food like in your country?"},
+    {"id": 40, "topic": "Stress", "question": "When do you usually feel stressed?"},
+    {"id": 41, "topic": "Conversation", "question": "Tell me about the last time you talked with a family member."},
+    {"id": 42, "topic": "Travel Interests", "question": "Why are you interested in travelling?"},
+    {"id": 43, "topic": "Favorite Animal", "question": "Please tell me about your favorite animal."},
+    {"id": 44, "topic": "Relaxation", "question": "What do you usually do to relax?"}
 ]
 
 PART2_DATA = [
-  {"id": 1, "image": "https://aptiskey.com/images/speaking/part2/1.png", "questions": ["Describe the picture?", "Why do people like eating out with friends?", "Please talk about the last time you ate with friends?"]},
-  {"id": 2, "image": "https://aptiskey.com/images/speaking/part2/2.png", "questions": ["Describe the picture?", "Tell me the last time you traveled in a car?", "How can people overcome the time of a long journey?"]},
-  {"id": 3, "image": "https://aptiskey.com/images/speaking/part2/3.png", "questions": ["Describe the picture?", "How often do you watch films or programmers at home? Why?", "Which is better for learning, watching video or reading? Why?"]},
-  {"id": 4, "image": "https://aptiskey.com/images/speaking/part2/4.png", "questions": ["Describe the picture?", "Do you often watch TV?", "Why is free time important?"]},
-  {"id": 5, "image": "https://aptiskey.com/images/speaking/part2/5.png", "questions": ["Describe the picture?", "What do you usually read?", "Why is reading important for children?"]},
-  {"id": 6, "image": "https://aptiskey.com/images/speaking/part2/6.png", "questions": ["Describe the picture?", "When was the last time you visited a new place?", "Why do people like to go to new places?"]},
-  {"id": 7, "image": "https://aptiskey.com/images/speaking/part2/7.png", "questions": ["Describe the picture?", "Describe the last time you did some physical work.", "Do you think machines will do all our hard work in the future? Why?"]},
-  {"id": 8, "image": "https://aptiskey.com/images/speaking/part2/8.png", "questions": ["Describe the picture?", "Tell us about the time you give a presentation. How did you feel?", "Why are people scared of public speaking?"]},
-  {"id": 9, "image": "https://aptiskey.com/images/speaking/part2/9.png", "questions": ["Describe the picture?", "Tell us the last time you went to the sea?", "Why do some people dislike going to the sea?"]},
-  {"id": 10, "image": "https://aptiskey.com/images/speaking/part2/10.png", "questions": ["Describe the picture?", "Tell me about the last time you used public transport", "How can we increase the number of people using public transport?"]},
-  {"id": 11, "image": "https://aptiskey.com/images/speaking/part2/11.png", "questions": ["Describe the picture?", "Tell me about a time you laughed a lot.", "Do you think people from different countries laugh at different things?"]},
-  {"id": 12, "image": "https://aptiskey.com/images/speaking/part2/12.png", "questions": ["Describe the picture?", "How do people learn to cook in your culture", "Why is it important for people to learn how to cook for themselves?"]},
-  {"id": 13, "image": "https://aptiskey.com/images/speaking/part2/13.png", "questions": ["Describe the picture?", "In your country, do parents care about their children?", "Why do parents care about their children?"]},
-  {"id": 14, "image": "https://aptiskey.com/images/speaking/part2/14.png", "questions": ["Describe the picture?", "How do children go to school in your country?", "Is it common to live far from school in your country? Why?"]},
-  {"id": 15, "image": "https://aptiskey.com/images/speaking/part2/15.png", "questions": ["Describe the picture?", "Do you like dancing? Why? Why not?", "On what occasions do people usually dance in your country?"]},
-  {"id": 16, "image": "https://aptiskey.com/images/speaking/part2/16.png", "questions": ["Describe the picture?", "Tell me about a game you played when you were a child.", "How have the children's games changed in the last 50 years?"]},
-  {"id": 17, "image": "https://aptiskey.com/images/speaking/part2/17.png", "questions": ["Describe the picture?", "How do most people in your country learn about world news?", "How has the reporting of news changed in the last fifty years?"]},
-  {"id": 18, "image": "https://aptiskey.com/images/speaking/part2/18.png", "questions": ["Describe the picture?", "Do you like to climb mountains?", "Do you think outdoor activities are important?"]},
-  {"id": 19, "image": "https://aptiskey.com/images/speaking/part2/19.png", "questions": ["Describe the picture?", "Why is it important to play with children?", "How should parents spend time together with their children?"]},
-  {"id": 20, "image": "https://aptiskey.com/images/speaking/part2/20.png", "questions": ["Describe the picture?", "Tell me about an animal that you like?", "How important are animals in our lives?"]},
-  {"id": 21, "image": "https://aptiskey.com/images/speaking/part2/21.png", "questions": ["Describe the picture?", "What are the benefits of outdoor activities?", "Why do many people like outdoor activities?"]},
-  {"id": 22, "image": "https://aptiskey.com/images/speaking/part2/22.png", "questions": ["Describe the picture?", "In your country, do parents care about their children?", "Why do parents care about their children?"]},
-  {"id": 23, "image": "https://aptiskey.com/images/speaking/part2/23.png", "questions": ["Describe the picture?", "Tell me the time you shopped in a local store?", "Nowadays, why do people like shopping online?"]},
-  {"id": 24, "image": "https://aptiskey.com/images/speaking/part2/24.png", "questions": ["Describe the picture?", "Do you prefer reading newspapers or watching news?", "Why do people need to watch the news?"]},
-  {"id": 25, "image": "https://aptiskey.com/images/speaking/part2/25.png", "questions": ["Describe the picture?", "What do you think about living in a crowded city?", "Why do many people hate crowded places?"]},
-  {"id": 26, "image": "https://aptiskey.com/images/speaking/part2/26.png", "questions": ["Describe the picture?", "When was the last time you went on vacation with someone else?", "What are the benefits of hanging out with other people?"]},
-  {"id": 27, "image": "https://aptiskey.com/images/speaking/part2/27.png", "questions": ["Describe the picture?", "Tell me about a time you received or gave gifts?", "On what occasions in your country do people give gifts?"]},
-  {"id": 28, "image": "https://aptiskey.com/images/speaking/part2/28.png", "questions": ["Describe the picture?", "Have you ever written a hand letter?", "Do you plan to write handwritten letters in the future?"]},
-  {"id": 29, "image": "https://aptiskey.com/images/speaking/part2/29.png", "questions": ["Describe the picture?", "What are the benefits of viewing artworks?", "Why do people like to go to art exhibitions?"]},
-  {"id": 30, "image": "https://aptiskey.com/images/speaking/part2/30.png", "questions": ["Describe the picture?", "Tell me the last time you went shopping?", "What is missing here?"]}
+  {"id": 1, "image": "https://aptiskey.com/images/speaking/part2/1.png", "questions": ["Describe the picture.", "Why do people enjoy eating out with friends?", "Tell me about the last time you ate out with friends."]},
+  {"id": 2, "image": "https://aptiskey.com/images/speaking/part2/2.png", "questions": ["Describe the picture.", "Tell me about the last time you travelled somewhere by car.", "How can people pass the time on a long journey?"]},
+  {"id": 3, "image": "https://aptiskey.com/images/speaking/part2/3.png", "questions": ["Describe the picture.", "How often do you watch films or programmes at home, and why?", "Which is better for learning: watching videos or reading? Why?"]},
+  {"id": 4, "image": "https://aptiskey.com/images/speaking/part2/4.png", "questions": ["Describe the picture.", "How often do you watch television?", "Why is free time important?"]},
+  {"id": 5, "image": "https://aptiskey.com/images/speaking/part2/5.png", "questions": ["Describe the picture.", "What kind of things do you enjoy reading?", "Why do people enjoy reading books?"]},
+  {"id": 6, "image": "https://aptiskey.com/images/speaking/part2/6.png", "questions": ["Describe the picture.", "When was the last time you visited a new place?", "Why do people enjoy visiting new places?"]},
+  {"id": 7, "image": "https://aptiskey.com/images/speaking/part2/7.png", "questions": ["Describe the picture.", "Tell me about the last time you did some physically demanding work.", "Do you think machines will do all our hard work in the future? Why or why not?"]},
+  {"id": 8, "image": "https://aptiskey.com/images/speaking/part2/8.png", "questions": ["Describe the picture.", "Tell me about a time when you gave a presentation. How did you feel?", "Why are some people afraid of public speaking?"]},
+  {"id": 9, "image": "https://aptiskey.com/images/speaking/part2/9.png", "questions": ["Describe the picture.", "Tell me about the last time you went to the seaside.", "Why do some people dislike going to the seaside?"]},
+  {"id": 10, "image": "https://aptiskey.com/images/speaking/part2/10.png", "questions": ["Describe the picture.", "Tell me about a time when you used public transport.", "Do you think people should use public transport more? Why or why not?"]},
+  {"id": 11, "image": "https://aptiskey.com/images/speaking/part2/11.png", "questions": ["Describe the picture.", "Tell me about a time when you laughed a lot.", "Do people from different countries laugh at different things? Why?"]},
+  {"id": 12, "image": "https://aptiskey.com/images/speaking/part2/12.png", "questions": ["Describe the picture.", "How do people learn to cook in your culture?", "Why is it important for people to learn to cook for themselves?"]},
+  {"id": 13, "image": "https://aptiskey.com/images/speaking/part2/13.png", "questions": ["Describe the picture.", "How do parents care for their children in your country?", "Why is parental care important?"]},
+  {"id": 14, "image": "https://aptiskey.com/images/speaking/part2/14.png", "questions": ["Describe the picture.", "How do children travel to school in your country?", "Is it common for children to live far from school? Why or why not?"]},
+  {"id": 15, "image": "https://aptiskey.com/images/speaking/part2/15.png", "questions": ["Describe the picture.", "Do you like dancing? Why or why not?", "On what occasions do people usually dance in your country?"]},
+  {"id": 16, "image": "https://aptiskey.com/images/speaking/part2/16.png", "questions": ["Describe the picture.", "Tell me about a game you played as a child.", "How have children's games changed over the last fifty years?"]},
+  {"id": 17, "image": "https://aptiskey.com/images/speaking/part2/17.png", "questions": ["Describe the picture.", "How do most people in your country find out about world news?", "How has news reporting changed over the last fifty years?"]},
+  {"id": 18, "image": "https://aptiskey.com/images/speaking/part2/18.png", "questions": ["Describe the picture.", "Do you enjoy climbing mountains? Why or why not?", "Why are outdoor activities important?"]},
+  {"id": 19, "image": "https://aptiskey.com/images/speaking/part2/19.png", "questions": ["Describe the picture.", "Why is it important for adults to play with children?", "How should parents spend quality time with their children?"]},
+  {"id": 20, "image": "https://aptiskey.com/images/speaking/part2/20.png", "questions": ["Describe the picture.", "Tell me about an animal you like.", "How important are animals in our lives?"]},
+  {"id": 21, "image": "https://aptiskey.com/images/speaking/part2/21.png", "questions": ["Describe the picture.", "What are the benefits of outdoor activities?", "Why do many people enjoy outdoor activities?"]},
+  {"id": 22, "image": "https://aptiskey.com/images/speaking/part2/22.png", "questions": ["Describe the picture.", "Describe a family activity you enjoy.", "Why is spending time together important for families?"]},
+  {"id": 23, "image": "https://aptiskey.com/images/speaking/part2/23.png", "questions": ["Describe the picture.", "Tell me about a time when you shopped at a local store.", "Why do people enjoy shopping online nowadays?"]},
+  {"id": 24, "image": "https://aptiskey.com/images/speaking/part2/24.png", "questions": ["Describe the picture.", "Do you prefer reading the news or watching it? Why?", "Why is it important for people to follow the news?"]},
+  {"id": 25, "image": "https://aptiskey.com/images/speaking/part2/25.png", "questions": ["Describe the picture.", "Tell me about a time when you were in a crowded place.", "What do most people dislike about crowded places?"]},
+  {"id": 26, "image": "https://aptiskey.com/images/speaking/part2/26.png", "questions": ["Describe the picture.", "When was the last time you went on holiday with someone else?", "What are the benefits of spending time with other people?"]},
+  {"id": 27, "image": "https://aptiskey.com/images/speaking/part2/27.png", "questions": ["Describe the picture.", "Tell me about a time when you gave or received a gift.", "On what occasions do people give gifts in your country?"]},
+  {"id": 28, "image": "https://aptiskey.com/images/speaking/part2/28.png", "questions": ["Describe the picture.", "Have you ever written a letter by hand?", "Do you think people will write handwritten letters in the future? Why or why not?"]},
+  {"id": 29, "image": "https://aptiskey.com/images/speaking/part2/29.png", "questions": ["Describe the picture.", "What are the benefits of viewing works of art?", "Why do people enjoy visiting art exhibitions?"]},
+  {"id": 30, "image": "https://aptiskey.com/images/speaking/part2/30.png", "questions": ["Describe the picture.", "Tell me about the last time you went shopping.", "Why do some people prefer shopping in stores rather than online?"]}
 ]
 
 
@@ -269,9 +286,10 @@ NGUYÊN TẮC CHỐNG BỊA:
 6. Không có hình thì không được nhận xét người/vật/màu sắc/bối cảnh trong hình.
    Với Part 3, chỉ đánh giá độ chính xác của việc mô tả/so sánh khi có đủ cả 2 ảnh;
    phải kiểm tra thí sinh có đề cập và so sánh đúng hai hình hay không.
-   Với Part 4, đánh giá một lượt nói dài: câu chuyện/kinh nghiệm phải có bối cảnh,
-   trình tự, chi tiết, kết quả và suy ngẫm phù hợp với chủ đề; không bịa các phần
-   người học chưa nói để coi như họ đã hoàn thành nhiệm vụ.
+   Với Part 4, đánh giá một lượt nói dài theo mức độ trả lời đủ cả ba câu hỏi. Nếu
+   câu đầu yêu cầu kể trải nghiệm, kiểm tra bối cảnh, trình tự, chi tiết, kết quả và
+   suy ngẫm; nếu câu đầu là câu mô tả/quan điểm thì không ép thành câu chuyện. Không
+   bịa phần người học chưa nói để coi như họ đã trả lời đủ ba câu.
 7. Không tạo bài mẫu, đoạn văn mẫu hay câu trả lời hoàn chỉnh. idea_development chỉ
    gồm 2-4 bước triển khai ý ngắn bằng tiếng Việt; không bịa dữ kiện cá nhân và
    không viết hộ câu tiếng Anh hoàn chỉnh.
@@ -294,8 +312,8 @@ vocabulary range and accuracy, pronunciation, fluency and coherence.
 Nếu transcript dưới 5 từ hoặc âm thanh dưới 5 giây, evidence_status phải là
 "limited", cefr_band không cao hơn A1 và từng tiêu chí cũng không cao hơn A1.
 Riêng Part 4, nếu bài nói dưới 60 giây thì evidence_status phải là "limited" và
-task_fulfilment phải nhận xét rõ phần phát triển lượt nói dài còn thiếu; không được
-tự giả định rằng thí sinh đã nói đủ bối cảnh, diễn biến, kết quả hay suy ngẫm.
+task_fulfilment phải nhận xét rõ phần phát triển lượt nói dài hoặc câu hỏi phụ còn
+thiếu; không được tự giả định rằng thí sinh đã trả lời đủ ba câu hỏi.
 Nếu status là "no_speech" hoặc "unintelligible", evidence_status phải là
 "insufficient", cefr_band và mọi score phải là "NOT_ASSESSED"; corrections,
 better_words và evidence đều là mảng rỗng.
@@ -477,6 +495,101 @@ def _get_wav_duration(audio_bytes: bytes):
 def _count_spoken_words(transcript: str) -> int:
     without_markers = re.sub(r"\[[^\]]+\]", " ", transcript)
     return len(re.findall(r"\b\w+(?:['’\-]\w+)*\b", without_markers, re.UNICODE))
+
+
+def _question_box_text(question_text: str) -> str:
+    """Escape dữ liệu đề trước khi đưa vào khối HTML và giữ ngắt dòng Part 4."""
+    return escape(str(question_text)).replace("\n", "<br>")
+
+
+def _answer_outline(speaking_part: str, question_text: str):
+    """Dàn ý ngắn để người học tự phát triển câu trả lời, không viết hộ bài mẫu."""
+    question = question_text.casefold()
+    is_past_experience = any(marker in question for marker in (
+        "last time", "a time when", "a time you", "did you", "yesterday",
+        "last night", "went to", "visited", "received", "gave"
+    ))
+    is_opinion = any(marker in question for marker in (
+        "why", "do you think", "what do you think", "important", "benefit",
+        "agree", "disagree", "prefer", "how can", "how should"
+    ))
+
+    first_question = question.splitlines()[0] if question.splitlines() else question
+    first_question = re.sub(r"^\s*\d+\.\s*", "", first_question)
+    part4_starts_with_story = first_question.startswith(("tell ", "describe ", "talk "))
+
+    if speaking_part.startswith("Part 4") and part4_starts_with_story:
+        return [
+            (
+                "Câu 1 — mở câu chuyện",
+                "Nêu sự kiện thật, thời gian, địa điểm và người liên quan. Có thể mở bằng "
+                "“I’m going to tell you about a time when…”"
+            ),
+            (
+                "Câu 1 — phát triển",
+                "Kể theo thứ tự First → Then → After that → Finally; thêm một khó khăn, "
+                "cách xử lý và kết quả."
+            ),
+            (
+                "Câu 2 — cảm xúc",
+                "Gọi tên cảm xúc, giải thích nguyên nhân và nói cảm xúc thay đổi ra sao."
+            ),
+            (
+                "Câu 3 — quan điểm",
+                "Trả lời thẳng, đưa hai lý do hoặc giải pháp, một ví dụ ngắn rồi kết luận."
+            )
+        ]
+
+    if speaking_part.startswith("Part 4"):
+        return [
+            ("Câu 1 — trả lời", "Trả lời trực tiếp rồi nêu 2–3 cách, đặc điểm hoặc ví dụ cụ thể."),
+            ("Câu 1 — phát triển", "Thêm when, where, who và ảnh hưởng thực tế nếu phù hợp."),
+            ("Câu 2 — cảm xúc", "Gọi tên cảm xúc, giải thích nguyên nhân và nêu một ví dụ."),
+            ("Câu 3 — quan điểm", "Nêu lập trường, hai lý do, một ví dụ hoặc giải pháp rồi kết luận.")
+        ]
+
+    if speaking_part.startswith("Part 3") and (
+        "two picture" in question or "2 picture" in question
+        or "compare" in question or "describe" in question
+    ):
+        return [
+            ("Tổng quan", "Nói chủ đề chung của hai ảnh: “The two pictures show…”"),
+            ("Điểm giống", "Nêu một hành động, đối tượng hoặc cảm xúc xuất hiện ở cả hai ảnh."),
+            (
+                "Điểm khác",
+                "So sánh người, hành động, nơi chốn và không khí bằng “whereas/by contrast”."
+            ),
+            ("Kết", "Chốt điểm khác nổi bật nhất hoặc lựa chọn của bạn nếu phù hợp.")
+        ]
+
+    if speaking_part.startswith("Part 2") and "describe" in question:
+        return [
+            ("Mở tranh", "Nêu người/vật và hành động chính: “In the picture, I can see…”"),
+            ("Chi tiết", "Mô tả ai, đang làm gì, ở đâu và trang phục nếu nhìn thấy rõ."),
+            ("Bối cảnh", "Nói 1–2 chi tiết nền; suy đoán cảm xúc/thời tiết chỉ khi có dấu hiệu."),
+            ("Kết", "Nêu ấn tượng chung về bức ảnh trong một câu ngắn.")
+        ]
+
+    if is_past_experience:
+        return [
+            ("Trả lời", "Nêu rõ sự việc và thời điểm: “As far as I can remember, it was…”"),
+            ("Chi tiết", "Thêm who, where, what happened và một chi tiết cụ thể."),
+            ("Kết quả", "Nói kết quả và cảm xúc hoặc điều bạn học được.")
+        ]
+
+    if is_opinion:
+        return [
+            ("Answer", "Trả lời thẳng quan điểm hoặc lựa chọn của bạn."),
+            ("Reason", "Đưa hai lý do khác nhau, tránh lặp lại cùng một ý."),
+            ("Example", "Thêm ví dụ thật: khi nào, ở đâu, với ai hoặc ảnh hưởng cụ thể."),
+            ("Close", "Kết lại bằng một câu khẳng định ngắn.")
+        ]
+
+    return [
+        ("Answer", "Trả lời trực tiếp bằng một câu đầy đủ."),
+        ("Describe", "Thêm 2–3 chi tiết: who/what, where, when và đặc điểm nổi bật."),
+        ("Reason & feeling", "Giải thích vì sao điều đó quan trọng và cảm xúc của bạn.")
+    ]
 
 
 def _not_assessed_result(transcription: dict, duration_seconds):
@@ -829,10 +942,18 @@ with st.sidebar:
             
     if selected_part == "Part 1: Personal Info":
         p1_titles = [f"Câu {q['id']}: {q['topic']}" for q in PART1_QUESTIONS]
-        selected_idx = st.selectbox("Chọn câu hỏi (28 câu):", range(len(PART1_QUESTIONS)), format_func=lambda x: p1_titles[x])
+        selected_idx = st.selectbox(
+            f"Chọn câu hỏi ({len(PART1_QUESTIONS)} câu):",
+            range(len(PART1_QUESTIONS)),
+            format_func=lambda x: p1_titles[x]
+        )
     elif selected_part == "Part 2: Describe Picture":
         p2_titles = [f"Đề {item['id']}: {item['questions'][1] if len(item['questions'])>1 else 'Picture ' + str(item['id'])}" for item in PART2_DATA]
-        selected_idx = st.selectbox("Chọn đề Part 2 (30 đề):", range(len(PART2_DATA)), format_func=lambda x: p2_titles[x])
+        selected_idx = st.selectbox(
+            f"Chọn đề Part 2 ({len(PART2_DATA)} đề):",
+            range(len(PART2_DATA)),
+            format_func=lambda x: p2_titles[x]
+        )
     elif selected_part == "Part 3: Compare Pictures":
         p3_titles = [f"Đề {item['id']}: {item['questions'][1]}" for item in PART3_DATA]
         selected_idx = st.selectbox(
@@ -841,7 +962,10 @@ with st.sidebar:
             format_func=lambda x: p3_titles[x]
         )
     else:
-        p4_titles = [f"Chủ đề {item['id']}: {item['question']}" for item in PART4_DATA]
+        p4_titles = [
+            f"Chủ đề {item['id']}: {item['question'].splitlines()[0].removeprefix('1. ')}"
+            for item in PART4_DATA
+        ]
         selected_idx = st.selectbox(
             f"Chọn chủ đề Part 4 ({len(PART4_DATA)} chủ đề):",
             range(len(PART4_DATA)),
@@ -863,7 +987,10 @@ with col_left:
     if selected_part == "Part 1: Personal Info":
         curr_q = PART1_QUESTIONS[selected_idx]
         st.markdown(f'<div class="main-title">🎙️ Part 1: {curr_q["topic"]}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="question-box">❓ {curr_q["question"]}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="question-box">❓ {_question_box_text(curr_q["question"])}</div>',
+            unsafe_allow_html=True
+        )
         active_question = curr_q["question"]
         active_img = None
         target_time = 30
@@ -886,7 +1013,10 @@ with col_left:
         target_time = 45
         active_item_key = f"p2-{curr_p2['id']}-{selected_sub_num}"
 
-        st.markdown(f'<div class="question-box">❓ {active_question}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="question-box">❓ {_question_box_text(active_question)}</div>',
+            unsafe_allow_html=True
+        )
     elif selected_part == "Part 3: Compare Pictures":
         curr_p3 = PART3_DATA[selected_idx]
         st.markdown(f'<div class="main-title">🖼️ Part 3: Đề {curr_p3["id"]}</div>', unsafe_allow_html=True)
@@ -909,7 +1039,10 @@ with col_left:
         target_time = 45
         active_item_key = f"p3-{curr_p3['id']}-{selected_sub_num}"
 
-        st.markdown(f'<div class="question-box">❓ {active_question}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="question-box">❓ {_question_box_text(active_question)}</div>',
+            unsafe_allow_html=True
+        )
     else:
         curr_p4 = PART4_DATA[selected_idx]
         st.markdown(f'<div class="main-title">🧠 Part 4: Chủ đề {curr_p4["id"]}</div>', unsafe_allow_html=True)
@@ -918,7 +1051,10 @@ with col_left:
         target_time = 120
         active_item_key = f"p4-{curr_p4['id']}"
 
-        st.markdown(f'<div class="question-box">❓ {active_question}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="question-box">❓ {_question_box_text(active_question)}</div>',
+            unsafe_allow_html=True
+        )
         st.info(
             "⏳ Dành khoảng 60 giây để chuẩn bị ý chính, sau đó nói liên tục tối đa "
             "120 giây. Ghi chú bên dưới chỉ dành cho bạn và không được gửi cho AI."
@@ -928,6 +1064,13 @@ with col_left:
             key=f"p4_notes_{curr_p4['id']}",
             height=100,
             placeholder="Từ khóa: bối cảnh → diễn biến → kết quả → cảm nhận/suy ngẫm"
+        )
+
+    with st.expander("💡 Dàn ý gợi ý (không phải bài mẫu)", expanded=False):
+        for outline_title, outline_detail in _answer_outline(selected_part, active_question):
+            st.markdown(f"**{outline_title}:** {outline_detail}")
+        st.caption(
+            "Hãy thay bằng thông tin và trải nghiệm thật của bạn; không cần học thuộc nguyên câu."
         )
 
     # Không để kết quả của câu trước xuất hiện dưới một câu hỏi mới.

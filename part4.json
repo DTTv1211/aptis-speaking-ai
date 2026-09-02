@@ -1,130 +1,138 @@
 [
   {
     "id": 1,
-    "question": "Tell about a time you saved money to do something? (Kể về một lần bạn tiết kiệm tiền làm gì đó)"
+    "question": "1. Tell me about a time when you saved money for something.\n2. How did you feel when you reached your savings goal?\n3. Why is it important for people to manage their money carefully?"
   },
   {
     "id": 2,
-    "question": "A Time you Asked a Good Question. (Kể về lần bạn đặt một câu hỏi hay)"
+    "question": "1. Talk about a time when you asked a question.\n2. Is it easy for you to ask questions? Why or why not?\n3. Why are some subjects more difficult for many people to learn?"
   },
   {
     "id": 3,
-    "question": "Tell me a time you read a good book. (Kể về một lần bạn đọc 1 cuốn sách hay)"
+    "question": "1. Tell me about a time when you read a good book.\n2. How do you feel when you read a book for pleasure?\n3. Some people prefer watching films to reading books. What do you think?"
   },
   {
     "id": 4,
-    "question": "Tell me a time you went to see a work of art. (Kể về một lần bạn đi xem một tác phẩm nghệ thuật)"
+    "question": "1. Describe a time when you saw an impressive work of art.\n2. How did you feel at that time?\n3. Some people say creativity cannot be taught to children. Do you agree or disagree?"
   },
   {
     "id": 5,
-    "question": "Describe a time when you had many options to choose from. (Kể về lần bạn có nhiều sự lựa chọn)"
+    "question": "1. Describe a time when you had many options to choose from.\n2. How did you make your final decision?\n3. Do more choices always help people make better decisions? Why or why not?"
   },
   {
     "id": 6,
-    "question": "Describe a time when you worked in a team. (Kể về một lần bạn làm việc nhóm)"
+    "question": "1. Describe a time when you worked in a team.\n2. How did you feel about working with the other team members?\n3. What makes a team work effectively?"
   },
   {
     "id": 7,
-    "question": "Describe a time when you did an extreme sport. (Kể về một lần bạn chơi thể thao mạo hiểm)"
+    "question": "1. Tell me about a time when you watched or took part in an extreme sport.\n2. How did you feel when you took part in or watched it?\n3. Only adults should be allowed to take part in extreme sports. What do you think?"
   },
   {
     "id": 8,
-    "question": "Describe a time you explored a forest. (Kể về một lần bạn vào rừng chơi)"
+    "question": "1. Tell me about a time when you were surrounded by nature.\n2. How did you feel at that time?\n3. How can people be encouraged to protect and preserve nature?"
   },
   {
     "id": 9,
-    "question": "Describe a time when you achieved something. (Kể về một lần bạn đạt được thành tựu)"
+    "question": "1. Describe a time when you achieved something important.\n2. How did that achievement affect you?\n3. How can schools or workplaces encourage people to achieve their goals?"
   },
   {
     "id": 10,
-    "question": "Describe a time when you learned a new skill. (Kể về một lần bạn học một kỹ năng mới)"
+    "question": "1. Describe a time when you learned something new.\n2. How do you feel when you learn something new?\n3. It is never too late to learn new things. Do you agree or disagree? Why?"
   },
   {
     "id": 11,
-    "question": "Describe a time when you received good news. (Kể về một lần bạn nhận được một tin tốt)"
+    "question": "1. Describe a time when you received good news.\n2. How did you react when you heard the news?\n3. Why do people enjoy sharing good news with others?"
   },
   {
     "id": 12,
-    "question": "Describe a time when you helped someone. (Kể về một lần bạn giúp đỡ một ai đó)"
+    "question": "1. Describe a time when you helped someone.\n2. How did helping that person make you feel?\n3. How can communities encourage more people to help one another?"
   },
   {
     "id": 13,
-    "question": "Describe a time when you went to an amusement park. (Kể về một lần bạn đi công viên giải trí)"
+    "question": "1. Describe a time when you went to an amusement park.\n2. How do you feel when you visit places like this?\n3. Amusement park rides can be scary. Why do people still take part in these activities?"
   },
   {
     "id": 14,
-    "question": "Describe a time when you wanted to buy something but couldn't. (Kể về một lần bạn muốn mua gì đó nhưng không được)"
+    "question": "1. Tell me about a time when you could not buy something you wanted.\n2. How did you feel at that time?\n3. Material possessions alone cannot make people happy. Do you agree or disagree?"
   },
   {
     "id": 15,
-    "question": "Describe a time when you hurried to do something. (Kể về một lần bạn vội vã làm gì đó)"
+    "question": "1. Describe a time when you had to hurry to do something.\n2. How did you feel during that situation?\n3. What can people do to manage their time better?"
   },
   {
     "id": 16,
-    "question": "Describe a time when you laughed out loud with a friend. (Kể về một lần bạn cười lớn với người bạn)"
+    "question": "1. Describe a time when you laughed a lot with a friend.\n2. How did you feel afterwards?\n3. How important is humour in people's lives?"
   },
   {
     "id": 17,
-    "question": "Describe a time when you faced a difficult question. (Kể về một lần bạn gặp câu hỏi khó)"
+    "question": "1. Describe a time when you faced a difficult question.\n2. How did you respond to it?\n3. Why is asking questions important for learning?"
   },
   {
     "id": 18,
-    "question": "Describe a time when you had a holiday/vacation. (Kể về một lần bạn có 1 kỳ nghỉ lễ)"
+    "question": "1. Describe a memorable holiday you had.\n2. How did you feel during that holiday?\n3. Why is it important for people to take breaks from work or study?"
   },
   {
     "id": 19,
-    "question": "Describe a time when you made a great effort. (Kể về một lần bạn nỗ lực)"
+    "question": "1. Tell me about a time when you tried hard to achieve something.\n2. How do you feel when you succeed?\n3. How can people be encouraged to achieve difficult goals?"
   },
   {
     "id": 20,
-    "question": "Describe a time when you worked with both elderly people and children. (Kể về một lần bạn làm việc với người già và trẻ)"
+    "question": "1. Tell me about a time when you worked with someone older or younger than you.\n2. How did you feel in that situation?\n3. How can people from different generations learn from one another?"
   },
   {
     "id": 21,
-    "question": "Talk about a challenge you have faced. (Kể về một thử thách của bạn)"
+    "question": "1. Talk about a challenge you have faced.\n2. How did you overcome that challenge?\n3. Do difficult experiences help people grow? Why or why not?"
   },
   {
     "id": 22,
-    "question": "Talk about a busy time you had. (Kể về một lần bạn bận rộn)"
+    "question": "1. Describe a time when you were very busy.\n2. How do you feel when you are busy?\n3. If people worked less, would their lives be better? Why or why not?"
   },
   {
     "id": 23,
-    "question": "Talk about a time you visited a new city. (Kể về một lần thăm một thành phố mới)"
+    "question": "1. Talk about a time when you visited a new city.\n2. How did you feel while exploring it?\n3. How can cities attract visitors without harming local life?"
   },
   {
     "id": 24,
-    "question": "Talk about a time you met a new friend. (Kể về một lần gặp một người bạn mới)"
+    "question": "1. Talk about a time when you met a new friend.\n2. How did you stay in contact afterwards?\n3. Has technology made it easier to build real friendships? Why or why not?"
   },
   {
     "id": 25,
-    "question": "Talk about a time you received a gift. (Kể về một lần bạn được tặng quà)"
+    "question": "1. Talk about a time when you received a gift.\n2. How did the gift make you feel?\n3. Does a meaningful gift need to be expensive? Why or why not?"
   },
   {
     "id": 26,
-    "question": "Talk about a time you were helped. (Kể về một lần bạn được giúp đỡ)"
+    "question": "1. Tell me about the last time someone helped you.\n2. How did you feel?\n3. How can people be encouraged to cooperate with one another?"
   },
   {
     "id": 27,
-    "question": "Talk about a time someone asked you to stop doing something. (Kể về một lần ai đó yêu cầu dừng làm việc gì)"
+    "question": "1. Describe a time when you had to do something you did not want to do.\n2. How did you feel when it was over?\n3. How can people motivate themselves to do things they do not enjoy?"
   },
   {
     "id": 28,
-    "question": "Talk about a time you got lost. (Kể về một lần bị lạc đường)"
+    "question": "1. Talk about a time when you got lost.\n2. How did you find your way again?\n3. What are the advantages and disadvantages of using technology for navigation?"
   },
   {
     "id": 29,
-    "question": "Talk about a time you visited an old building. (Kể về một lần thăm một tòa nhà cổ)"
+    "question": "1. Talk about a time when you visited an old building.\n2. How did you feel while you were there?\n3. Why should communities preserve historic buildings?"
   },
   {
     "id": 30,
-    "question": "Talk about a time you broke a rule. (Kể về một lần phạm luật)"
+    "question": "1. Talk about a time when you broke a rule.\n2. What happened as a result?\n3. Should people always follow rules? Why or why not?"
   },
   {
     "id": 31,
-    "question": "Talk about a time you attended a music festival. (Kể về một lần tham gia lễ hội âm nhạc)"
+    "question": "1. Talk about a time when you attended a music festival.\n2. How did you feel during the event?\n3. Why are music and cultural festivals important for communities?"
   },
   {
     "id": 32,
-    "question": "Talk about a time you watched a sports match. (Kể về một lần xem một trận đấu thể thao)"
+    "question": "1. Talk about a time when you watched a sports match.\n2. How did you feel while watching it?\n3. Is it better to watch sport live or on television? Why?"
+  },
+  {
+    "id": 33,
+    "question": "1. What are the different ways you use the Internet?\n2. How do you feel when you use the Internet?\n3. Some people say the Internet has a negative impact on our lives. What do you think?"
+  },
+  {
+    "id": 34,
+    "question": "1. Describe a time when you visited someone.\n2. What do you think about having unexpected visitors?\n3. Some people prefer living in small communities, while others prefer living in big cities. Which do you prefer and why?"
   }
 ]
