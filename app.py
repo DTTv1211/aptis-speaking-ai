@@ -28,6 +28,26 @@ MOCK_EXAM_IMAGE_DIR = APP_DIR / (
 ) / "images"
 
 
+def _available_image_source(image_source):
+    """Trả về nguồn ảnh dùng được; không để file thiếu làm Streamlit Cloud dừng."""
+    if not isinstance(image_source, str) or not image_source.strip():
+        return None
+
+    image_source = image_source.strip()
+    if re.match(r"^https?://", image_source, flags=re.IGNORECASE):
+        return image_source
+
+    image_path = Path(image_source)
+    if not image_path.is_absolute():
+        image_path = APP_DIR / image_path
+    try:
+        image_path = image_path.resolve()
+        image_path.relative_to(APP_DIR)
+    except (OSError, ValueError):
+        return None
+    return str(image_path) if image_path.is_file() else None
+
+
 def _get_secret(name, default=None):
     """Cho phép chạy chỉ bằng environment variable khi chưa có secrets.toml."""
     try:
@@ -206,19 +226,22 @@ PART2_DATA = [
   {"id": 30, "image": "https://aptiskey.com/images/speaking/part2/30.png", "questions": ["Describe the picture.", "Tell me about the last time you went shopping.", "Why do some people prefer shopping in stores rather than online?"]}
 ]
 
-# Đề hoàn chỉnh ngày 29/08 được giữ nguyên câu hỏi và dùng ảnh cục bộ đi kèm
-# tài liệu. Không phụ thuộc máy chủ ảnh bên ngoài nên vẫn hiển thị khi deploy.
-PART2_DATA.append({
-    "id": 31,
-    "title": "Helping Others — Playing with children",
-    "source": MOCK_EXAM_SOURCE,
-    "image": str(MOCK_EXAM_IMAGE_DIR / "image1.png"),
-    "questions": [
-        "Describe the picture.",
-        "Why is it important to play with children?",
-        "What happens when families can’t afford good childcare?"
-    ]
-})
+# Chỉ thêm đề ảnh cục bộ khi asset thật sự có trong bản deploy. Nhờ vậy, nếu
+# người dùng chỉ đẩy app.py lên Cloud mà quên thư mục ảnh, app vẫn mở được và
+# tự chuyển sang các đề dùng URL ở phía dưới.
+MOCK_PART2_IMAGE = _available_image_source(str(MOCK_EXAM_IMAGE_DIR / "image1.png"))
+if MOCK_PART2_IMAGE:
+    PART2_DATA.append({
+        "id": 31,
+        "title": "Helping Others — Playing with children",
+        "source": MOCK_EXAM_SOURCE,
+        "image": MOCK_PART2_IMAGE,
+        "questions": [
+            "Describe the picture.",
+            "Why is it important to play with children?",
+            "What happens when families can’t afford good childcare?"
+        ]
+    })
 
 
 def _load_part3_data():
@@ -259,13 +282,14 @@ except (OSError, json.JSONDecodeError, ValueError) as error:
     PART3_DATA = []
     PART3_LOAD_ERROR = str(error)
 
-if PART3_DATA:
+MOCK_PART3_IMAGE = _available_image_source(str(MOCK_EXAM_IMAGE_DIR / "image3.png"))
+if PART3_DATA and MOCK_PART3_IMAGE:
     PART3_DATA.append({
         "id": 50,
         "title": "Helping Others — Pets",
         "source": MOCK_EXAM_SOURCE,
         # image3.png đã ghép sẵn cả hai ảnh; gửi nguyên ảnh giúp giữ đúng bố cục đề.
-        "images": [str(MOCK_EXAM_IMAGE_DIR / "image3.png")],
+        "images": [MOCK_PART3_IMAGE],
         "questions": [
             "What are the differences between these two pictures?",
             "Who would love these kinds of pets?",
@@ -307,17 +331,20 @@ except (OSError, json.JSONDecodeError, ValueError) as error:
     PART4_LOAD_ERROR = str(error)
 
 if PART4_DATA:
-    PART4_DATA.append({
+    mock_part4_item = {
         "id": 35,
         "title": "Helping Others",
         "source": MOCK_EXAM_SOURCE,
-        "image": str(MOCK_EXAM_IMAGE_DIR / "image2.png"),
         "question": (
             "1. Tell me about a time when you helped someone.\n"
             "2. How did you feel?\n"
             "3. Should we help others even if it’s inconvenient?"
         )
-    })
+    }
+    mock_part4_image = _available_image_source(str(MOCK_EXAM_IMAGE_DIR / "image2.png"))
+    if mock_part4_image:
+        mock_part4_item["image"] = mock_part4_image
+    PART4_DATA.append(mock_part4_item)
 
 
 # Chủ đề trọng điểm được đối chiếu với phần tổng quan Speaking và 42 lượt review
@@ -2339,7 +2366,14 @@ with col_left:
 
         if curr_p2.get("source") == MOCK_EXAM_SOURCE:
             st.caption("🆕 Đề hoàn chỉnh 29/08 — Helping Others · ảnh và câu hỏi từ tài liệu đã cung cấp.")
-        st.image(curr_p2["image"], use_container_width=True)
+        active_img = _available_image_source(curr_p2.get("image"))
+        if active_img:
+            st.image(active_img, use_container_width=True)
+        else:
+            st.warning(
+                "⚠️ Ảnh của đề này chưa có trong bản deploy. Hãy chọn đề khác "
+                "hoặc tải kèm thư mục ảnh lên repository."
+            )
         
         sub_idx = st.radio(
             "Chọn câu hỏi phụ cần luyện tập (45 giây/câu):",
@@ -2350,7 +2384,6 @@ with col_left:
         selected_sub_num = int(sub_idx.split(":")[0].replace("Câu ", "")) - 1
         active_question = curr_p2["questions"][selected_sub_num]
         coaching_context = " ".join(curr_p2["questions"])
-        active_img = curr_p2["image"]
         target_time = 45
         active_item_key = f"p2-{curr_p2['id']}-{selected_sub_num}"
 
@@ -2364,18 +2397,28 @@ with col_left:
 
         if curr_p3.get("source") == MOCK_EXAM_SOURCE:
             st.caption("🆕 Đề hoàn chỉnh 29/08 — Helping Others · ảnh và câu hỏi từ tài liệu đã cung cấp.")
-        if len(curr_p3["images"]) == 1:
+        active_images = [
+            _available_image_source(image_source)
+            for image_source in curr_p3["images"]
+        ]
+        images_are_available = all(active_images)
+        if not images_are_available:
+            st.warning(
+                "⚠️ Một hoặc nhiều ảnh của đề chưa có trong bản deploy. Hãy chọn "
+                "đề khác hoặc tải kèm thư mục ảnh lên repository."
+            )
+        elif len(active_images) == 1:
             st.image(
-                curr_p3["images"][0],
+                active_images[0],
                 caption="Picture 1 & Picture 2",
                 use_container_width=True
             )
         else:
             image_col_1, image_col_2 = st.columns(2, gap="small")
             with image_col_1:
-                st.image(curr_p3["images"][0], caption="Picture 1", use_container_width=True)
+                st.image(active_images[0], caption="Picture 1", use_container_width=True)
             with image_col_2:
-                st.image(curr_p3["images"][1], caption="Picture 2", use_container_width=True)
+                st.image(active_images[1], caption="Picture 2", use_container_width=True)
 
         sub_idx = st.radio(
             "Chọn câu hỏi phụ cần luyện tập (45 giây/câu):",
@@ -2386,7 +2429,7 @@ with col_left:
         selected_sub_num = int(sub_idx.split(":")[0].replace("Câu ", "")) - 1
         active_question = curr_p3["questions"][selected_sub_num]
         coaching_context = " ".join(curr_p3["questions"])
-        active_img = curr_p3["images"]
+        active_img = active_images if images_are_available else None
         target_time = 45
         active_item_key = f"p3-{curr_p3['id']}-{selected_sub_num}"
 
@@ -2399,7 +2442,7 @@ with col_left:
         st.markdown(f'<div class="main-title">🧠 Part 4: Chủ đề {curr_p4["id"]}</div>', unsafe_allow_html=True)
         active_question = curr_p4["question"]
         coaching_context = active_question
-        active_img = curr_p4.get("image")
+        active_img = _available_image_source(curr_p4.get("image"))
         target_time = 120
         active_item_key = f"p4-{curr_p4['id']}"
 
