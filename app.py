@@ -260,6 +260,59 @@ except (OSError, json.JSONDecodeError, ValueError) as error:
     PART4_DATA = []
     PART4_LOAD_ERROR = str(error)
 
+
+# Đề trọng điểm Speaking tháng 9, đối chiếu theo chủ đề trong danh sách người dùng
+# cung cấp. Thứ tự trong mỗi tuple cũng là thứ tự ghim; các đề còn lại giữ nguyên
+# thứ tự tương đối và được đưa xuống dưới.
+HIGH_FREQUENCY_SPEAKING_IDS = {
+    "part1": (
+        8, 25, 30, 39, 12, 13, 32, 27, 26, 3, 11, 21, 33, 4, 28, 19
+    ),
+    "part2": (
+        12, 30, 23, 18, 21, 22, 19, 10, 3, 4, 9, 8
+    ),
+    "part3": (
+        43, 34, 17, 8, 11, 16, 35, 23, 48
+    ),
+    "part4": (
+        6, 26, 12, 21, 10, 9, 19, 5, 11, 25, 18, 23, 15, 1, 16
+    )
+}
+
+
+def _pin_high_frequency_items(items, priority_ids):
+    """Đưa ID trọng điểm lên đầu mà không làm xáo trộn nhóm đề còn lại."""
+    priority_rank = {item_id: rank for rank, item_id in enumerate(priority_ids)}
+    original_rank = {item["id"]: rank for rank, item in enumerate(items)}
+    return sorted(
+        items,
+        key=lambda item: (
+            0 if item["id"] in priority_rank else 1,
+            priority_rank.get(item["id"], original_rank[item["id"]]),
+            original_rank[item["id"]]
+        )
+    )
+
+
+def _frequency_label(part_key: str, item_id: int, label: str) -> str:
+    priority_ids = HIGH_FREQUENCY_SPEAKING_IDS[part_key]
+    prefix = "🔥 Trọng điểm · " if item_id in priority_ids else "Đề khác · "
+    return prefix + label
+
+
+PART1_QUESTIONS = _pin_high_frequency_items(
+    PART1_QUESTIONS, HIGH_FREQUENCY_SPEAKING_IDS["part1"]
+)
+PART2_DATA = _pin_high_frequency_items(
+    PART2_DATA, HIGH_FREQUENCY_SPEAKING_IDS["part2"]
+)
+PART3_DATA = _pin_high_frequency_items(
+    PART3_DATA, HIGH_FREQUENCY_SPEAKING_IDS["part3"]
+)
+PART4_DATA = _pin_high_frequency_items(
+    PART4_DATA, HIGH_FREQUENCY_SPEAKING_IDS["part4"]
+)
+
 # ==============================================================================
 # MỘT REQUEST DUY NHẤT: CHÉP LỜI TRƯỚC -> CHẤM TRÊN CHÍNH TRANSCRIPT ĐÓ
 # ==============================================================================
@@ -1371,6 +1424,7 @@ with st.sidebar:
         st.error(f"Không thể nạp Part 4: {PART4_LOAD_ERROR}")
 
     selected_part = st.radio("Chọn phần thi:", part_options, index=1)
+    st.caption("🔥 Đề trọng điểm tháng 9 được ghim ở đầu; các đề khác nằm phía dưới.")
     
     st.markdown("---")
     if not GEMINI_API_KEYS:
@@ -1385,21 +1439,37 @@ with st.sidebar:
             )
             
     if selected_part == "Part 1: Personal Info":
-        p1_titles = [f"Câu {q['id']}: {q['topic']}" for q in PART1_QUESTIONS]
+        p1_titles = [
+            _frequency_label("part1", q["id"], f"Câu {q['id']}: {q['topic']}")
+            for q in PART1_QUESTIONS
+        ]
         selected_idx = st.selectbox(
             f"Chọn câu hỏi ({len(PART1_QUESTIONS)} câu):",
             range(len(PART1_QUESTIONS)),
             format_func=lambda x: p1_titles[x]
         )
     elif selected_part == "Part 2: Describe Picture":
-        p2_titles = [f"Đề {item['id']}: {item['questions'][1] if len(item['questions'])>1 else 'Picture ' + str(item['id'])}" for item in PART2_DATA]
+        p2_titles = [
+            _frequency_label(
+                "part2",
+                item["id"],
+                f"Đề {item['id']}: "
+                f"{item['questions'][1] if len(item['questions']) > 1 else 'Picture ' + str(item['id'])}"
+            )
+            for item in PART2_DATA
+        ]
         selected_idx = st.selectbox(
             f"Chọn đề Part 2 ({len(PART2_DATA)} đề):",
             range(len(PART2_DATA)),
             format_func=lambda x: p2_titles[x]
         )
     elif selected_part == "Part 3: Compare Pictures":
-        p3_titles = [f"Đề {item['id']}: {item['questions'][1]}" for item in PART3_DATA]
+        p3_titles = [
+            _frequency_label(
+                "part3", item["id"], f"Đề {item['id']}: {item['questions'][1]}"
+            )
+            for item in PART3_DATA
+        ]
         selected_idx = st.selectbox(
             f"Chọn đề Part 3 ({len(PART3_DATA)} đề):",
             range(len(PART3_DATA)),
@@ -1407,7 +1477,12 @@ with st.sidebar:
         )
     else:
         p4_titles = [
-            f"Chủ đề {item['id']}: {item['question'].splitlines()[0].removeprefix('1. ')}"
+            _frequency_label(
+                "part4",
+                item["id"],
+                f"Chủ đề {item['id']}: "
+                f"{item['question'].splitlines()[0].removeprefix('1. ')}"
+            )
             for item in PART4_DATA
         ]
         selected_idx = st.selectbox(
