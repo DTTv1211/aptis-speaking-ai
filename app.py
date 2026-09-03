@@ -2079,12 +2079,210 @@ READING_KEYWORD_DATA = [
 ]
 
 
-READING_MATCHING_FOCUS = [
-    "Childhood games / Video games",
-    "Extreme sports",
-    "Music festivals",
-    "Women in careers",
-    "The four-day workweek",
+READING_PART3_SOURCE = (
+    "https://docs.google.com/forms/d/e/"
+    "1FAIpQLSeD2vII665LiBLcc3qQ6qnVHo56RWXTx2yZJR-sANJUSGPOUA/viewform"
+)
+
+READING_PART3_DATA = [
+    {
+        "id": "r3-job-training",
+        "title": "Job and Training",
+        "passages": {
+            "A": (
+                "I graduated in 2000. After graduating, I found it really challenging "
+                "to get a job. I sent applications to many local companies, but none "
+                "accepted me because I lacked experience. Eventually, I landed a "
+                "position at a gaming company that allowed me to work from home. It "
+                "didn't affect my daily schedule. For example, I worked night shifts "
+                "while my colleagues worked during the day, and that arrangement "
+                "suited me perfectly."
+            ),
+            "B": (
+                "After finishing school, I wasn't sure what to do, so I took part in "
+                "several volunteer programmes with different companies and organisations "
+                "to build experience. I really enjoyed volunteering because it helped me "
+                "decide on a career path and gave me many valuable lessons. I also feel "
+                "proud knowing that my contributions made a positive impact."
+            ),
+            "C": (
+                "When I was young, I used to help my neighbour, who was a plumber, with "
+                "basic tasks such as measuring pipes, loosening screws and managing tools. "
+                "I was excited to learn that kind of work, so later I studied for two years "
+                "at university to become an electrician. However, I've since discovered "
+                "that shorter training courses are available, and I regret not choosing one."
+            ),
+            "D": (
+                "When I was still in school, I already knew that teaching was the career "
+                "I wanted to pursue, so I didn't need to try other jobs. I studied education "
+                "at university, where tuition is free in my country. Last summer, I completed "
+                "practical training in local schools, and it was extremely helpful for my career."
+            ),
+        },
+        "questions": [
+            ("Who enjoys working in a flexible working environment?", "A"),
+            ("Who thinks they benefited from working for free?", "B"),
+            ("Who thinks it is very hard to get your first job?", "A"),
+            ("Who likes working with their hands?", "C"),
+            ("Who did not want to choose another job?", "D"),
+            ("Who enjoyed working during their training?", "D"),
+            ("Who thinks their training was too long?", "C"),
+        ],
+    },
+    {
+        "id": "r3-video-games",
+        "title": "Video Games",
+        "passages": {
+            "A": (
+                "When I was a little kid, I used to play soccer with other children of "
+                "the same age. We usually played in the schoolyard and sometimes in open "
+                "spaces in the neighbourhood. We divided into small teams and chased the "
+                "ball until we were all tired. It was extremely fun and entertaining."
+            ),
+            "B": (
+                "I didn't like going out to play when I was a child, so I read books as "
+                "entertainment. The stories helped me discover my own world. Later, I "
+                "started enjoying modern games with eye-catching interfaces, which help "
+                "me relax and increase my creativity."
+            ),
+            "C": (
+                "When I was a child, I really enjoyed outdoor activities. On rainy days, "
+                "I waited by the window and hoped for the rain to stop. My mother often "
+                "gave me paper and a box of crayons. I enjoyed drawing at home whenever "
+                "the weather was bad."
+            ),
+            "D": (
+                "In the past, I was a big fan of board games. Now, I often play them with "
+                "my children to limit their computer use. I struggle with today's games "
+                "because they have more characters and rules. Despite this challenge, my "
+                "children and I still enjoy playing together."
+            ),
+        },
+        "questions": [
+            ("Who prefers modern games?", "B"),
+            ("Who finds today's games harder than before?", "D"),
+            ("Who enjoyed playing with friends in childhood?", "A"),
+            ("Who enjoys playing with their children?", "D"),
+            ("Who enjoyed reading books as a child?", "B"),
+            ("Who enjoyed art as a child?", "C"),
+            ("Who waited and hoped to go outside?", "C"),
+        ],
+    },
+    {
+        "id": "r3-festivals",
+        "title": "Festivals",
+        "passages": {
+            "A": (
+                "Normally, I don't attend festivals, but this time I gave it a try. The "
+                "sound system was weak, the schedule seemed messy and it started raining "
+                "heavily. The ground turned muddy, and I felt uncomfortable for most of "
+                "the day. The only thing I liked was the beautiful park where it was held."
+            ),
+            "B": (
+                "I stayed until the end and thoroughly enjoyed the final performance. The "
+                "stage lit up with lights and fireworks. Before getting there, I was stuck "
+                "in a traffic jam and the bus was crowded. Once I reached the venue, the "
+                "final performance made everything worth it."
+            ),
+            "C": (
+                "I enjoyed the vibrant music. One band on the first night was so good that "
+                "I couldn't stop singing along. However, the tickets, food and drinks were "
+                "far too expensive. I spent more money than planned and hope the organisers "
+                "lower the prices next year."
+            ),
+            "D": (
+                "What I liked most was the venue. The riverside park was spacious and "
+                "beautiful, with plenty of space to relax between shows. Some performances "
+                "were enjoyable, but I didn't stay until the festival finished. The setting "
+                "was what impressed me most."
+            ),
+        },
+        "questions": [
+            ("Who experienced bad weather?", "A"),
+            ("Who found the traffic difficult?", "B"),
+            ("Who thought it was too expensive?", "C"),
+            ("Who liked the location?", "D"),
+            ("Who liked the final performance of the show?", "B"),
+            ("Who loved one of the performances?", "C"),
+            ("Who didn't like the festival overall?", "A"),
+        ],
+    },
+    {
+        "id": "r3-extreme-sports",
+        "title": "Extreme Sports",
+        "passages": {
+            "A": (
+                "What excites me most about extreme sports is the way they let me connect "
+                "with nature. Rock climbing and mountain biking allow me to explore amazing "
+                "places while challenging myself. If I had more time and money, I would do "
+                "these sports more often, especially in wild and remote areas."
+            ),
+            "B": (
+                "Before any extreme activity, I believe proper training is essential. These "
+                "activities are exciting but dangerous without preparation. I always take a "
+                "training course and learn the safety rules before trying anything new."
+            ),
+            "C": (
+                "I've always preferred traditional sports such as swimming, running and "
+                "tennis. A few months ago, I went bungee jumping and it was incredible. I "
+                "still prefer regular sports for fitness, but I am now open to trying an "
+                "extreme sport occasionally."
+            ),
+            "D": (
+                "Extreme sports have never been important to me, and I avoid them as much "
+                "as possible. I don't like putting myself in danger for fun. I would rather "
+                "walk or do yoga than jump out of a plane or climb a mountain."
+            ),
+        },
+        "questions": [
+            ("Who enjoys connecting with nature?", "A"),
+            ("Who believes training is necessary before an extreme sport?", "B"),
+            ("Who always avoids extreme sports?", "D"),
+            ("Who finds extreme sports unimportant?", "D"),
+            ("Who prefers traditional sports such as swimming?", "C"),
+            ("Who wants to do more extreme sports?", "A"),
+            ("Who still likes extreme sports after trying an unusual activity?", "C"),
+        ],
+    },
+    {
+        "id": "r3-festivals-v2",
+        "title": "Festivals - Version 2",
+        "passages": {
+            "A": (
+                "This was my first concert, and the experience was mixed. During the first "
+                "two days, the music was ordinary and I wished there had been some sunshine. "
+                "The last day changed my impression because I finally saw my favourite singers. "
+                "Meeting them and enjoying their performances made the trip special."
+            ),
+            "B": (
+                "I attend music festivals every year and enjoy the energetic atmosphere. This "
+                "festival was different. The weather was poor, although it didn't bother me "
+                "much. The venue was only moderately convenient and the performances were "
+                "unremarkable. I doubt I will return."
+            ),
+            "C": (
+                "I prefer festivals with many kinds of music, and this event lived up to my "
+                "expectations. The songs and melodies were impressive. Even the rain made the "
+                "atmosphere more vibrant. However, the ticket was expensive and difficult for "
+                "many students, including me, to afford."
+            ),
+            "D": (
+                "My band was invited to perform. The show was memorable because of the energy "
+                "on stage and because former members and collaborators were there. It was great "
+                "to reconnect with them. The only problem was that the venue was far from the "
+                "main road, which made moving our equipment difficult."
+            ),
+        },
+        "questions": [
+            ("Who was disappointed with the weather?", "A"),
+            ("Who was not impressed by the event overall?", "B"),
+            ("Who enjoyed all the music at the event?", "C"),
+            ("Who thought the event was expensive?", "C"),
+            ("Who liked meeting old friends?", "D"),
+            ("Who thought the location was not good?", "D"),
+            ("Who enjoyed the final day of the event?", "A"),
+        ],
+    },
 ]
 
 
@@ -2179,7 +2377,7 @@ def _render_browser_speech(text: str, item_id: str):
     """Phát đoạn luyện nghe bằng Web Speech API, không cần API key/backend TTS."""
     button_id = "listen_" + re.sub(r"[^a-zA-Z0-9_-]", "_", item_id)
     spoken_text = json.dumps(text, ensure_ascii=False).replace("</", "<\\/")
-    st.html(
+    st.iframe(
         f"""
         <div style="font-family: sans-serif; display:flex; gap:8px; align-items:center;">
           <button id="{button_id}" style="padding:9px 14px; border:0; border-radius:7px;
@@ -2204,7 +2402,7 @@ def _render_browser_speech(text: str, item_id: str):
           }});
         </script>
         """,
-        unsafe_allow_javascript=True,
+        height=58,
     )
 
 
@@ -2236,11 +2434,20 @@ def _render_listening_practice():
     if "script" in topic:
         st.caption("Ôn đủ dạng · không phải chủ đề dự đoán trọng điểm")
         _render_browser_speech(topic["script"], topic["id"])
-        selected_answer = st.radio(
+        display_options = [
+            f"{chr(65 + index)}. {option}"
+            for index, option in enumerate(topic["options"])
+        ]
+        selected_display = st.radio(
             "Chọn đáp án:",
-            topic["options"],
+            display_options,
             index=None,
             key=f"listening_l1_answer_{topic['id']}",
+        )
+        selected_answer = (
+            None
+            if selected_display is None
+            else topic["options"][display_options.index(selected_display)]
         )
         if st.button("✅ Kiểm tra đáp án", type="primary", key=f"listening_l1_check_{topic['id']}"):
             if selected_answer is None:
@@ -2364,6 +2571,61 @@ def _render_reading_order_exercise(item):
             st.markdown(f"{number}. {sentence}")
 
 
+def _render_reading_part3_exercise(item):
+    st.subheader(item["title"])
+    st.caption(
+        "Đọc bốn đoạn A–D rồi ghép từng nhận định. Một người có thể là đáp án "
+        "của nhiều câu."
+    )
+
+    passage_columns = st.columns(2, gap="medium")
+    for index, (speaker, passage) in enumerate(item["passages"].items()):
+        with passage_columns[index % 2]:
+            with st.container(border=True):
+                st.markdown(f"#### Person {speaker}")
+                st.write(passage)
+
+    selected_answers = []
+    st.markdown("#### Ghép câu hỏi")
+    for number, (question, _answer) in enumerate(item["questions"], start=1):
+        selected_answers.append(
+            st.selectbox(
+                f"{number}. {question}",
+                ["— Chọn người —", "A", "B", "C", "D"],
+                key=f"reading_part3_{item['id']}_{number}",
+            )
+        )
+
+    result_key = f"reading_part3_result_{item['id']}"
+    if st.button("✅ Kiểm tra 7 câu", type="primary", key=f"reading_part3_check_{item['id']}"):
+        if "— Chọn người —" in selected_answers:
+            st.session_state[result_key] = {
+                "selected": tuple(selected_answers),
+                "kind": "warning",
+                "message": "Bạn chưa chọn đủ 7 câu.",
+            }
+        else:
+            correct_answers = [answer for _question, answer in item["questions"]]
+            score = sum(
+                selected == correct
+                for selected, correct in zip(selected_answers, correct_answers)
+            )
+            st.session_state[result_key] = {
+                "selected": tuple(selected_answers),
+                "kind": "success" if score == len(correct_answers) else "error",
+                "message": f"Bạn làm đúng {score}/{len(correct_answers)} câu.",
+            }
+
+    saved_result = st.session_state.get(result_key)
+    if saved_result and saved_result.get("selected") == tuple(selected_answers):
+        getattr(st, saved_result["kind"])(saved_result["message"])
+
+    with st.expander("👁️ Xem đáp án và đối chiếu"):
+        for number, (question, answer) in enumerate(item["questions"], start=1):
+            st.markdown(f"{number}. **{answer}** — {question}")
+        st.caption("Hãy quay lại đoạn tương ứng và gạch chân câu làm bằng chứng.")
+
+
 def _render_reading_practice():
     st.markdown('<div class="main-title">📖 Reading</div>', unsafe_allow_html=True)
     _render_source_note(
@@ -2375,8 +2637,8 @@ def _render_reading_practice():
         [
             "Part 1 - Hoàn thành câu",
             "Part 2 - Sắp xếp câu",
+            "Part 3 - Ghép người nói",
             "Chuỗi từ khóa ghép tiêu đề",
-            "Danh sách Part 3 trọng điểm",
         ],
         horizontal=True,
         key="reading_mode",
@@ -2398,7 +2660,16 @@ def _render_reading_practice():
             key="reading_order_topic",
         )
         _render_reading_order_exercise(READING_ORDER_DATA[item_index])
-    elif mode == "Chuỗi từ khóa ghép tiêu đề":
+    elif mode == "Part 3 - Ghép người nói":
+        item_index = st.selectbox(
+            "Chọn bài Part 3:",
+            range(len(READING_PART3_DATA)),
+            format_func=lambda index: READING_PART3_DATA[index]["title"],
+            key="reading_part3_topic",
+        )
+        _render_reading_part3_exercise(READING_PART3_DATA[item_index])
+        st.link_button("🔗 Mở Google Form gốc", READING_PART3_SOURCE)
+    else:
         item_index = st.selectbox(
             "Chọn bài:",
             range(len(READING_KEYWORD_DATA)),
@@ -2417,12 +2688,6 @@ def _render_reading_practice():
             for number, (keyword, meaning) in enumerate(item["keywords"], start=1):
                 st.markdown(f"{number}. **{keyword}** — {meaning}")
             st.info("🧠 Câu chuyện nhớ: " + item["memory"])
-    else:
-        st.subheader("Nhóm Part 3 cần ưu tiên")
-        st.caption("Dùng danh sách này để lọc bài trong bộ đề; chưa trộn thêm chủ đề ngoài trọng điểm.")
-        for number, topic in enumerate(READING_MATCHING_FOCUS, start=1):
-            st.markdown(f"{number}. **{topic}**")
-        st.info("Khi làm bài ghép người nói, gạch chân thái độ, trải nghiệm và từ nối đối lập của từng người.")
 
 
 def _writing_text_area(label: str, key: str, minimum: int, maximum: int, height: int):
