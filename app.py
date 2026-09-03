@@ -226,6 +226,7 @@ export default function(component) {
   const progress = parentElement.querySelector('[data-role="progress"]');
   const maxSeconds = Math.max(1, Number(data.max_seconds || 45));
   const prepSeconds = Math.max(0, Number(data.prep_seconds || 0));
+  let hasRecording = Boolean(data.has_recording);
   const outputRate = 16000;
 
   let mode = 'idle';
@@ -254,8 +255,13 @@ export default function(component) {
     mode = nextMode;
     button.dataset.mode = nextMode;
     if (nextMode === 'idle') {
-      button.textContent = prepSeconds ? `⏳ Bắt đầu ${prepSeconds} giây chuẩn bị` : '🎙️ Bắt đầu ghi âm';
-      status.textContent = prepSeconds ? 'Sẵn sàng chuẩn bị — chưa ghi âm' : 'Sẵn sàng';
+      button.disabled = false;
+      button.textContent = hasRecording
+        ? (prepSeconds ? `⏳ Chuẩn bị và ghi âm lại` : '🎙️ Ghi âm lại')
+        : (prepSeconds ? `⏳ Bắt đầu ${prepSeconds} giây chuẩn bị` : '🎙️ Bắt đầu ghi âm');
+      status.textContent = hasRecording
+        ? 'Bản ghi đã lưu — bạn có thể ghi lại để thay thế'
+        : (prepSeconds ? 'Sẵn sàng chuẩn bị — chưa ghi âm' : 'Sẵn sàng');
       timeText.textContent = prepSeconds ? formatTime(prepSeconds) : '00:00';
       limitText.textContent = `Giới hạn nói ${formatTime(maxSeconds)}`;
       progress.style.width = '0%';
@@ -405,12 +411,22 @@ export default function(component) {
     const wav = encodeWav(resampled, outputRate);
     chunks = [];
     if (!disposed) {
-      setTriggerValue('recording', {
+      const completedRecording = {
         audio_b64: arrayBufferToBase64(wav),
         duration_seconds: duration,
         stop_reason: reason,
         created_at: Date.now()
-      });
+      };
+      if (audioContext) {
+        try { await audioContext.close(); } catch (_) {}
+        audioContext = null;
+      }
+      // Mở khóa nút trước khi báo Streamlit rerun. Component v2 có thể được
+      // giữ nguyên DOM sau rerun, nên không được trông chờ việc mount lại để
+      // thoát khỏi trạng thái "processing".
+      hasRecording = true;
+      setMode('idle');
+      setTriggerValue('recording', completedRecording);
     }
   };
 
@@ -1132,6 +1148,7 @@ def _decode_timed_recording(payload, maximum_seconds: int):
         "audio_bytes": audio_bytes,
         "duration_seconds": duration,
         "stop_reason": payload.get("stop_reason", "manual"),
+        "recording_id": payload.get("created_at"),
     }
 
 
@@ -3946,10 +3963,12 @@ with col_left:
             st.session_state.pop(previous_audio_state_key, None)
         st.session_state["active_audio_state_key"] = audio_state_key
 
+    saved_recording = st.session_state.get(audio_state_key)
     recorder_result = TIMED_AUDIO_RECORDER(
         data={
             "max_seconds": target_time,
             "prep_seconds": prep_time,
+            "has_recording": isinstance(saved_recording, dict),
         },
         key=f"timed_recorder_{active_item_key}",
         on_recording_change=lambda: None,
@@ -3958,15 +3977,26 @@ with col_left:
     recording_payload = getattr(recorder_result, "recording", None)
     if recording_payload:
         try:
-            st.session_state[audio_state_key] = _decode_timed_recording(
+            decoded_recording = _decode_timed_recording(
                 recording_payload,
                 target_time,
             )
+            previous_recording_id = (
+                saved_recording.get("recording_id")
+                if isinstance(saved_recording, dict)
+                else None
+            )
+            if decoded_recording.get("recording_id") != previous_recording_id:
+                # Bản mới thay thế hoàn toàn bản cũ; không để kết quả chấm cũ
+                # xuất hiện dưới một bản thu khác.
+                st.session_state.pop("current_feedback", None)
+            st.session_state[audio_state_key] = decoded_recording
+            saved_recording = decoded_recording
         except ValueError as error:
             st.session_state.pop(audio_state_key, None)
+            saved_recording = None
             st.error(str(error))
 
-    saved_recording = st.session_state.get(audio_state_key)
     audio_bytes = (
         saved_recording.get("audio_bytes")
         if isinstance(saved_recording, dict)
