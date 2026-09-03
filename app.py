@@ -19,6 +19,13 @@ from streamlit.errors import StreamlitSecretNotFoundError
 # GEMINI_API_KEYS = ["key-project-1", "key-project-2", "key-project-3"]
 DEFAULT_KEY = ""
 GEMINI_MODEL = "gemini-3.5-flash-lite"
+APP_DIR = Path(__file__).resolve().parent
+RECENT_REVIEW_PERIOD = "28/08–02/09/2026"
+MOCK_EXAM_SOURCE = "mock_2026_08_29_helping_others"
+MOCK_EXAM_IMAGE_DIR = APP_DIR / (
+    "08. 29_08. CHỮA TRỌN 1 ĐỀ APTIS SPEAKING_ HIỂU ĐỀ THI _ "
+    "CẦN CHUẨN BỊ GÌ TRƯỚC KỲ THI"
+) / "images"
 
 
 def _get_secret(name, default=None):
@@ -82,8 +89,8 @@ GEMINI_REQUEST_TIMEOUT_MS = 180_000
 MAX_ASSESSMENT_OUTPUT_TOKENS = 16_384
 
 st.set_page_config(
-    page_title="Aptis Speaking Coach - APTISPRO Rubric",
-    page_icon="🎙️",
+    page_title="Aptis Practice Coach",
+    page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -105,6 +112,13 @@ st.markdown("""
         font-weight: 600;
         color: #1E293B;
         margin-bottom: 1rem;
+    }
+    .study-note {
+        background-color: #F8FAFC;
+        border-left: 4px solid #0EA5E9;
+        padding: 12px 14px;
+        border-radius: 7px;
+        margin: 0.5rem 0 1rem 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -192,6 +206,20 @@ PART2_DATA = [
   {"id": 30, "image": "https://aptiskey.com/images/speaking/part2/30.png", "questions": ["Describe the picture.", "Tell me about the last time you went shopping.", "Why do some people prefer shopping in stores rather than online?"]}
 ]
 
+# Đề hoàn chỉnh ngày 29/08 được giữ nguyên câu hỏi và dùng ảnh cục bộ đi kèm
+# tài liệu. Không phụ thuộc máy chủ ảnh bên ngoài nên vẫn hiển thị khi deploy.
+PART2_DATA.append({
+    "id": 31,
+    "title": "Helping Others — Playing with children",
+    "source": MOCK_EXAM_SOURCE,
+    "image": str(MOCK_EXAM_IMAGE_DIR / "image1.png"),
+    "questions": [
+        "Describe the picture.",
+        "Why is it important to play with children?",
+        "What happens when families can’t afford good childcare?"
+    ]
+})
+
 
 def _load_part3_data():
     """Đọc Part 3 từ file JSON cạnh app.py và kiểm tra cấu trúc tối thiểu."""
@@ -210,8 +238,10 @@ def _load_part3_data():
         if not isinstance(item_id, int) or item_id in seen_ids:
             raise ValueError(f"Đề Part 3 tại vị trí {position} có id không hợp lệ/trùng lặp.")
         seen_ids.add(item_id)
-        if not isinstance(item.get("images"), list) or len(item["images"]) != 2:
-            raise ValueError(f"Đề Part 3 số {item.get('id')} phải có đúng 2 ảnh.")
+        if not isinstance(item.get("images"), list) or len(item["images"]) not in {1, 2}:
+            raise ValueError(
+                f"Đề Part 3 số {item.get('id')} phải có một ảnh ghép hoặc hai ảnh riêng."
+            )
         if not all(isinstance(url, str) and url.strip() for url in item["images"]):
             raise ValueError(f"Đề Part 3 số {item.get('id')} chứa URL ảnh không hợp lệ.")
         if not isinstance(item.get("questions"), list) or len(item["questions"]) != 3:
@@ -229,9 +259,23 @@ except (OSError, json.JSONDecodeError, ValueError) as error:
     PART3_DATA = []
     PART3_LOAD_ERROR = str(error)
 
+if PART3_DATA:
+    PART3_DATA.append({
+        "id": 50,
+        "title": "Helping Others — Pets",
+        "source": MOCK_EXAM_SOURCE,
+        # image3.png đã ghép sẵn cả hai ảnh; gửi nguyên ảnh giúp giữ đúng bố cục đề.
+        "images": [str(MOCK_EXAM_IMAGE_DIR / "image3.png")],
+        "questions": [
+            "What are the differences between these two pictures?",
+            "Who would love these kinds of pets?",
+            "What are the benefits of having pets at home?"
+        ]
+    })
+
 
 def _load_part4_data():
-    """Đọc 32 chủ đề Part 4 từ file JSON cạnh app.py."""
+    """Đọc các chủ đề Part 4 từ file JSON cạnh app.py."""
     data_path = Path(__file__).resolve().with_name("part4.json")
     with data_path.open("r", encoding="utf-8") as data_file:
         data = json.load(data_file)
@@ -249,6 +293,8 @@ def _load_part4_data():
         seen_ids.add(item_id)
         if not isinstance(item.get("question"), str) or not item["question"].strip():
             raise ValueError(f"Chủ đề Part 4 số {item_id} thiếu câu hỏi.")
+        if "image" in item and not isinstance(item["image"], str):
+            raise ValueError(f"Chủ đề Part 4 số {item_id} chứa đường dẫn ảnh không hợp lệ.")
 
     return data
 
@@ -260,23 +306,74 @@ except (OSError, json.JSONDecodeError, ValueError) as error:
     PART4_DATA = []
     PART4_LOAD_ERROR = str(error)
 
+if PART4_DATA:
+    PART4_DATA.append({
+        "id": 35,
+        "title": "Helping Others",
+        "source": MOCK_EXAM_SOURCE,
+        "image": str(MOCK_EXAM_IMAGE_DIR / "image2.png"),
+        "question": (
+            "1. Tell me about a time when you helped someone.\n"
+            "2. How did you feel?\n"
+            "3. Should we help others even if it’s inconvenient?"
+        )
+    })
 
-# Đề trọng điểm Speaking tháng 9, đối chiếu theo chủ đề trong danh sách người dùng
-# cung cấp. Thứ tự trong mỗi tuple cũng là thứ tự ghim; các đề còn lại giữ nguyên
-# thứ tự tương đối và được đưa xuống dưới.
+
+# Chủ đề trọng điểm được đối chiếu với phần tổng quan Speaking và 42 lượt review
+# trong tài liệu 28/08–02/09. Đề hoàn chỉnh 29/08 đứng đầu, sau đó là các chủ đề
+# xuất hiện lặp lại; những đề còn lại vẫn giữ nguyên thứ tự tương đối ở phía dưới.
 HIGH_FREQUENCY_SPEAKING_IDS = {
     "part1": (
-        8, 25, 30, 39, 12, 13, 32, 27, 26, 3, 11, 21, 33, 4, 28, 19
+        2, 18, 9, 25, 1, 12, 13, 8, 4, 26, 27, 30, 16, 34,
+        39, 32, 3, 11, 21, 33, 28, 19
     ),
     "part2": (
-        12, 30, 23, 18, 21, 22, 19, 10, 3, 4, 9, 8
+        31, 12, 30, 23, 18, 21, 22, 19, 10, 3, 4, 9, 8
     ),
     "part3": (
-        43, 34, 17, 8, 11, 16, 35, 23, 48
+        50, 43, 34, 17, 8, 11, 16, 35, 23, 48
     ),
     "part4": (
-        6, 26, 12, 21, 10, 9, 19, 5, 11, 25, 18, 23, 15, 1, 16
+        35, 6, 26, 12, 21, 10, 9, 19, 5, 11, 25, 18, 23, 15, 1, 16
     )
+}
+
+MOCK_EXAM_IDS = {
+    "part1": {2, 18, 9},
+    "part2": {31},
+    "part3": {50},
+    "part4": {35}
+}
+
+RECENT_TOPIC_SUMMARY = {
+    "Part 1: Personal Info": [
+        "First school · Family · Friends",
+        "Weather / Favorite season",
+        "Famous place · Room / House",
+        "Typical meal · Hobby / Reading habits"
+    ],
+    "Part 2: Describe Picture": [
+        "Family playing sports outdoors",
+        "Eating together",
+        "Shopping for clothes",
+        "Queuing / Check-in",
+        "A parent teaching a child to ride a bicycle"
+    ],
+    "Part 3: Compare Pictures": [
+        "Indoor vs outdoor exercise",
+        "Music at home vs a live performance",
+        "Library vs coffee shop",
+        "Office vs manual / workshop work",
+        "Summer seaside vs winter / mountains",
+        "Planting trees vs helping older people"
+    ],
+    "Part 4: Long Turn": [
+        "Receiving a gift · Being in a hurry",
+        "Learning a new skill / Accomplishment",
+        "Saving money · Traveling to a new place",
+        "Receiving good news · Rude behavior"
+    ]
 }
 
 
@@ -296,7 +393,12 @@ def _pin_high_frequency_items(items, priority_ids):
 
 def _frequency_label(part_key: str, item_id: int, label: str) -> str:
     priority_ids = HIGH_FREQUENCY_SPEAKING_IDS[part_key]
-    prefix = "🔥 Trọng điểm · " if item_id in priority_ids else "Đề khác · "
+    if item_id in MOCK_EXAM_IDS[part_key]:
+        prefix = "🆕 Đề 29/08 · "
+    elif item_id in priority_ids:
+        prefix = "🔥 Trọng điểm · "
+    else:
+        prefix = "Đề khác · "
     return prefix + label
 
 
@@ -602,6 +704,19 @@ def _question_box_text(question_text: str) -> str:
 
 
 EASY_VOCABULARY_BANK = [
+    {
+        "keywords": (
+            "play with children", "childcare", "care for children", "afford good childcare"
+        ),
+        "words": [
+            ("play together", "chơi cùng nhau"),
+            ("look after children", "chăm sóc trẻ em"),
+            ("learn through play", "học qua việc chơi"),
+            ("feel safe", "cảm thấy an toàn"),
+            ("cost too much", "tốn quá nhiều tiền"),
+            ("ask family for help", "nhờ gia đình giúp đỡ")
+        ]
+    },
     {
         "keywords": (
             "money", "save", "savings", "buy", "shopping", "shop", "market",
@@ -1032,6 +1147,33 @@ def _not_assessed_result(transcription: dict, duration_seconds):
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def _fetch_image_bytes(image_url: str):
+    """Đọc ảnh HTTPS hoặc ảnh cục bộ an toàn nằm trong thư mục ứng dụng."""
+    if not re.match(r"^https?://", image_url, flags=re.IGNORECASE):
+        image_path = Path(image_url)
+        if not image_path.is_absolute():
+            image_path = APP_DIR / image_path
+        image_path = image_path.resolve()
+        try:
+            image_path.relative_to(APP_DIR)
+        except ValueError as error:
+            raise ValueError("Ảnh cục bộ phải nằm trong thư mục ứng dụng.") from error
+
+        local_mime_types = {
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".webp": "image/webp",
+            ".heic": "image/heic",
+            ".heif": "image/heif"
+        }
+        mime_type = local_mime_types.get(image_path.suffix.casefold())
+        if mime_type is None:
+            raise ValueError("Ảnh cục bộ có định dạng không được Gemini hỗ trợ.")
+        image_bytes = image_path.read_bytes()
+        if not image_bytes or len(image_bytes) > MAX_IMAGE_BYTES:
+            raise ValueError("Ảnh rỗng hoặc vượt quá giới hạn 4 MB.")
+        return image_bytes, mime_type
+
     response = httpx.get(image_url, timeout=10.0, follow_redirects=True)
     response.raise_for_status()
     mime_type = response.headers.get("content-type", "").split(";", 1)[0].casefold()
@@ -1046,7 +1188,7 @@ def _fetch_image_bytes(image_url: str):
 
 
 def _download_relevant_images(image_source):
-    """Part 2 gửi một ảnh; Part 3 chỉ gửi khi tải được đủ cả hai ảnh."""
+    """Gửi đủ ảnh liên quan; Part 3 chấp nhận một ảnh ghép hoặc hai ảnh riêng."""
     if isinstance(image_source, str):
         image_urls = [image_source]
     elif isinstance(image_source, (list, tuple)):
@@ -1067,7 +1209,7 @@ def _download_relevant_images(image_source):
             image_parts.append(
                 types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
             )
-    except (httpx.HTTPError, ValueError):
+    except (httpx.HTTPError, OSError, ValueError):
         return [], False, True, 0
 
     # Không gửi một nửa cặp ảnh Part 3 vì model có thể tưởng đó là toàn bộ đề.
@@ -1406,12 +1548,678 @@ trả lời. Không dùng phần minh họa này làm bằng chứng chấm đi�
     return assessment
 
 # ==============================================================================
+# LISTENING · READING · WRITING TRỌNG ĐIỂM
+# ==============================================================================
+# Chỉ giữ các nhóm được đánh dấu trọng điểm trong bộ dự đoán người học cung cấp.
+# Các đáp án Listening/Reading được trình bày theo kiểu flashcard: tự nhớ trước,
+# sau đó mới lật đáp án. File nguồn riêng tư không được nhúng hoặc công khai lại.
+LISTENING_FOCUS_DATA = {
+    "Part 2 - Bốn người nói": [
+        {
+            "id": "l2-study-place",
+            "title": "A place for studying",
+            "instruction": "Ghép mỗi người với nơi họ thường học.",
+            "answers": [
+                "A — on public transport",
+                "B — at home",
+                "C — in a coffee shop",
+                "D — in a park",
+            ],
+            "tip": "Tập trung nghe từ chỉ địa điểm, không cần hiểu từng câu.",
+        },
+        {
+            "id": "l2-study-habits",
+            "title": "Study habits",
+            "instruction": "Ghép mỗi người với cách hoặc điều kiện học phù hợp.",
+            "answers": [
+                "A — late at night",
+                "B — in various places",
+                "C — with music",
+                "D — in a quiet place",
+            ],
+            "tip": "Phân biệt thời gian, địa điểm, âm nhạc và sự yên tĩnh.",
+        },
+        {
+            "id": "l2-environment",
+            "title": "Ways to protect the environment",
+            "instruction": "Ghép người nói với hành động bảo vệ môi trường.",
+            "answers": [
+                "A — uses less electricity / turns off lights",
+                "B — does not drive to work",
+                "C — shops online, so there is no drive to the store",
+                "D — uses less water / takes short showers",
+            ],
+            "tip": "Nghe động từ chính: turn off, drive, shop, use water.",
+        },
+        {
+            "id": "l2-shopping",
+            "title": "Online shopping",
+            "instruction": "Ghép người nói với lợi ích họ nhắc đến.",
+            "answers": [
+                "A — products are delivered",
+                "B — it is cheaper",
+                "C — it saves time",
+                "D — there are more choices",
+            ],
+            "tip": "Các đáp án gần nghĩa; chờ cụm giải thích thay vì chỉ bắt một từ.",
+        },
+        {
+            "id": "l2-exercise",
+            "title": "Exercise preferences",
+            "instruction": "Ghép mỗi người với môn vận động họ thích.",
+            "answers": [
+                "A — mountain biking",
+                "B — jogging / running",
+                "C — walking",
+                "D — horse riding",
+            ],
+            "tip": "Ghi nhanh chữ cái và môn thể thao ngay khi nghe thấy bằng chứng.",
+        },
+        {
+            "id": "l2-eco-choices",
+            "title": "Environmental choices",
+            "instruction": "Ghép người nói với thói quen giảm rác thải.",
+            "answers": [
+                "A — gives away used items",
+                "B — buys products without packaging",
+                "C — reuses items",
+                "D — avoids using unnecessary products",
+            ],
+            "tip": "Chú ý sự khác nhau giữa give away, avoid và reuse.",
+        },
+    ],
+    "Part 3 - Hai người thảo luận": [
+        {
+            "id": "l3-actors",
+            "title": "Actors and acting",
+            "instruction": "Chọn Man, Woman hoặc Both cho từng ý.",
+            "answers": [
+                "Auditions are the most important part of casting — Woman",
+                "Actors respond best to a strong script — Man",
+                "Theatre and movie acting require different skills — Both",
+                "Actors need to be praised — Both",
+            ],
+            "tip": "Gạch chân quan điểm; đáp án Both có thể được diễn đạt bằng hai cách khác nhau.",
+        },
+        {
+            "id": "l3-internet",
+            "title": "The Internet",
+            "instruction": "Chọn Man, Woman hoặc Both cho từng ý.",
+            "answers": [
+                "There is too much information — Woman",
+                "Using the Internet requires skills — Both",
+                "The Internet is changing the way we think — Man",
+                "The Internet has made people less patient — Both",
+            ],
+            "tip": "Phân biệt người nêu ý trước và người đồng tình sau đó.",
+        },
+        {
+            "id": "l3-urban-farming",
+            "title": "Urban farming",
+            "instruction": "Chọn Man, Woman hoặc Both cho từng ý.",
+            "answers": [
+                "Living space is more important than farming space — Woman",
+                "Urban farms can be visually appealing — Both",
+                "They can benefit the local economy — Man",
+                "They cannot meet all food needs — Woman",
+            ],
+            "tip": "Nghe các từ nối đối lập như but, however và although.",
+        },
+        {
+            "id": "l3-information-tech",
+            "title": "Information and technology",
+            "instruction": "Chọn Man, Woman hoặc Both cho từng ý.",
+            "answers": [
+                "Future generations may fail to cope — Man",
+                "The information revolution is good for the economy — Woman",
+                "No computer is superior to the human brain — Woman",
+                "We need to protect individual privacy more — Both",
+            ],
+            "tip": "Tách dự đoán tương lai, lợi ích kinh tế và lo ngại quyền riêng tư.",
+        },
+        {
+            "id": "l3-university-tech",
+            "title": "University and technology",
+            "instruction": "Chọn Man, Woman hoặc Both cho từng ý.",
+            "answers": [
+                "Technology makes education more accessible — Both",
+                "Social interaction is important — Man",
+                "A diverse curriculum is not always an advantage — Woman",
+                "Competition between universities should be encouraged — Man",
+            ],
+            "tip": "Chờ nghe cả mệnh đề vì câu phủ định dễ làm chọn nhầm.",
+        },
+        {
+            "id": "l3-volunteer",
+            "title": "Environmental volunteering",
+            "instruction": "Chọn Man, Woman hoặc Both cho từng ý.",
+            "answers": [
+                "The media exaggerates the benefits — Both",
+                "Littering will always be a problem — Man",
+                "Punishment is the most effective solution — Man",
+                "Motivation does not affect the outcome — Woman",
+            ],
+            "tip": "Đừng chọn theo kiến thức của mình; chỉ chọn quan điểm thực sự được nói.",
+        },
+    ],
+    "Part 4 - Bài nói dài": [
+        {
+            "id": "l4-novel",
+            "title": "A new novel",
+            "instruction": "Nhớ hai ý chính của người nói.",
+            "answers": ["The characters are interesting", "The novel may establish the author's popularity"],
+            "tip": "Nghe đánh giá về nội dung rồi đến ảnh hưởng đối với tác giả.",
+        },
+        {
+            "id": "l4-professionalism",
+            "title": "Professionalism",
+            "instruction": "Nhớ hai ý chính của người nói.",
+            "answers": ["Maintain a positive attitude", "The definition of professionalism is changing"],
+            "tip": "Tách lời khuyên thực tế và nhận xét mang tính khái quát.",
+        },
+        {
+            "id": "l4-writer",
+            "title": "A writer's experience",
+            "instruction": "Nhớ hai ý chính của người nói.",
+            "answers": ["Create dedicated periods for writing", "The writer refused to seek advice"],
+            "tip": "Chú ý thói quen làm việc và thái độ với lời khuyên.",
+        },
+        {
+            "id": "l4-home",
+            "title": "Working from home",
+            "instruction": "Nhớ hai ý chính của người nói.",
+            "answers": ["It is not always as good as expected", "Its success depends on the situation and personality"],
+            "tip": "Đáp án thường là ý đã được diễn đạt lại, không lặp nguyên văn.",
+        },
+        {
+            "id": "l4-script",
+            "title": "Movie and television scripts",
+            "instruction": "Nhớ hai ý chính của người nói.",
+            "answers": ["Some dialogue is unrealistic", "Industry demand can negatively influence script production"],
+            "tip": "Nghe vấn đề trong lời thoại và nguyên nhân từ ngành công nghiệp.",
+        },
+        {
+            "id": "l4-writers",
+            "title": "Two famous writers",
+            "instruction": "Nhớ hai ý chính của người nói.",
+            "answers": ["Their work was overlooked by academics", "Their meanings are not easy to identify"],
+            "tip": "Không bị phân tâm bởi tên riêng; tập trung vào hai nhận xét chính.",
+        },
+        {
+            "id": "l4-finance",
+            "title": "Managing personal finances",
+            "instruction": "Nhớ hai ý chính của người nói.",
+            "answers": ["Organise resources and monitor weekly spending", "Get advice from experienced people"],
+            "tip": "Nhóm từ theo hai nhánh: tự quản lý và tìm người hỗ trợ.",
+        },
+        {
+            "id": "l4-sleep",
+            "title": "The importance of sleep",
+            "instruction": "Nhớ hai ý chính của người nói.",
+            "answers": ["Block noise and light", "People may not recognise the symptoms of tiredness"],
+            "tip": "Một ý là giải pháp, ý còn lại là vấn đề cần nhận biết.",
+        },
+    ],
+}
+
+
+READING_ORDER_DATA = [
+    {
+        "id": "r-cafe",
+        "title": "New Café",
+        "intro": "There was a new café in town, so I decided to give it a try.",
+        "sentences": [
+            "The café was full of people, and the staff were working hard on their first day.",
+            "Despite the crowd, I found a table and a member of staff brought me the menu.",
+            "I was disappointed because the menu did not offer much variety.",
+            "I chose the most expensive sandwich.",
+            "It was good, especially with the cheese topping, so I decided to return.",
+        ],
+    },
+    {
+        "id": "r-singer",
+        "title": "Famous Singer",
+        "intro": "The text describes how a singer became well known.",
+        "sentences": [
+            "He is now a famous and widely appreciated singer.",
+            "He started studying music when he was fifteen.",
+            "He practised both his voice and his performance skills.",
+            "His unique fashion and performances helped him become well known.",
+            "As a result, more and more people began to recognise him.",
+        ],
+    },
+    {
+        "id": "r-sports",
+        "title": "Family Sports Day",
+        "intro": "The family went to the park on Sunday morning.",
+        "sentences": [
+            "A ten-mile race began with five men and one woman at the front.",
+            "There were sixty participants, and Ms Kamus was the fastest and won the race.",
+            "After the prize was presented, the children's activities began.",
+            "They played football, swam and skipped, and everyone was happy.",
+            "Finally, the children were hungry and ate with their parents.",
+        ],
+    },
+    {
+        "id": "r-films",
+        "title": "Films: Then and Now",
+        "intro": "Films today are very different from films in the past.",
+        "sentences": [
+            "In the past, many films were black and white and had no sound.",
+            "Film-makers also faced technical restrictions and limited budgets.",
+            "Because of these limits, actors often earned very little.",
+            "Technology and the film industry later developed quickly.",
+            "Today, successful producers and actors can earn much more money.",
+        ],
+    },
+]
+
+
+READING_KEYWORD_DATA = [
+    {
+        "id": "rk-mountain",
+        "title": "Mountain",
+        "keywords": [
+            ("definition", "định nghĩa"),
+            ("achievement", "thành tựu"),
+            ("publicity", "sự quảng bá / chú ý công chúng"),
+            ("priority", "sự ưu tiên"),
+            ("revelation", "sự khám phá / tiết lộ"),
+            ("substantiality", "tính vững chắc"),
+            ("relationship", "mối quan hệ"),
+        ],
+        "memory": "Định nghĩa → thành tựu → quảng bá → ưu tiên → khám phá → bền vững → quan hệ.",
+    },
+    {
+        "id": "rk-women-math",
+        "title": "Women in Mathematics",
+        "keywords": [
+            ("gender", "giới tính"),
+            ("pioneer", "người tiên phong"),
+            ("man", "người đàn ông"),
+            ("career", "sự nghiệp"),
+            ("labels", "nhãn / định kiến"),
+            ("balance", "sự cân bằng"),
+            ("uniformity", "sự đồng nhất / rập khuôn"),
+        ],
+        "memory": "Giới tính → nữ tiên phong → bị người khác lấy công → bảo vệ sự nghiệp → bỏ nhãn → cân bằng → không rập khuôn.",
+    },
+    {
+        "id": "rk-four-day",
+        "title": "The Four-day Workweek",
+        "keywords": [
+            ("a way of life", "một cách sống"),
+            ("employees", "người lao động"),
+            ("financial consequences", "hậu quả tài chính"),
+            ("challenges", "thách thức"),
+            ("difficulties", "khó khăn"),
+            ("unfair", "không công bằng"),
+            ("alternative solution", "giải pháp thay thế"),
+        ],
+        "memory": "Cách sống → lợi ích cho người làm → hậu quả tài chính → thách thức/khó khăn → công bằng → giải pháp thay thế.",
+    },
+]
+
+
+READING_MATCHING_FOCUS = [
+    "Childhood games / Video games",
+    "Extreme sports",
+    "Music festivals",
+    "Women in careers",
+    "The four-day workweek",
+]
+
+
+WRITING_FOCUS_DATA = {
+    "Art Club": {
+        "part2": "Tell me about a painting or photo that you like.",
+        "part3": [
+            "I have kept a painting for a long time. Tell me about a thing you have had for a long time.",
+            "I would like to learn painting but have not found an effective way. Should I take a course at my local college?",
+            "Street art is becoming popular, but some people say it is bad. What is your opinion?",
+        ],
+        "part4_context": "The Art Club is organising a public talk and wants to invite an artist.",
+        "informal": "Write to a friend. Say which artist you would invite and what topic the artist should discuss.",
+        "formal": "Write to the organiser. Recommend an artist and topics that could attract both young and older people.",
+        "hints": ["an experienced local artist", "the benefits of art", "how to make successful artwork", "local and foreign art"],
+    },
+    "English Club": {
+        "part2": "What do you usually use the Internet for?",
+        "part3": [
+            "I usually spend six hours a day studying English. What about you?",
+            "English is a popular language in the world. What are your thoughts on this idea?",
+            "When do you usually use English?",
+            "How did you feel about the club meeting this afternoon?",
+            "What topics would you like us to discuss in our Saturday meetings?",
+            "Can you suggest some English games for next week?",
+        ],
+        "part4_context": "More new words are being added to the language. Some people accept this, while others want rules for language.",
+        "informal": "Write to a friend and explain your view about new words in the language.",
+        "formal": "Write to the club manager. Explain your view and why people may react differently.",
+        "hints": ["language changes over time", "new words make vocabulary richer", "some words are hard to understand", "clear rules can prevent confusion"],
+    },
+    "Language Club": {
+        "part2": "What do you often do in your free time?",
+        "part3": [
+            "Why did you join this language course?",
+            "How long did it take you to find a suitable course? Did you have any trouble?",
+            "What do you expect to gain after finishing this language course?",
+        ],
+        "part4_context": "You recently found a language course, but you cannot attend the last class.",
+        "informal": "Write to a friend. Introduce your course, describe your experience and advise your friend to join.",
+        "formal": "Write to the course manager. Explain why you cannot attend the last class and describe your feelings.",
+        "hints": ["friendly teachers", "useful speaking practice", "a suitable timetable", "ask for the missed lesson materials"],
+    },
+    "Business Club": {
+        "part2": "Where do you usually go shopping?",
+        "part3": [
+            "Tell me about a successful small business in your area.",
+            "My friend is opening a second coffee shop. What advice can help the business become more successful?",
+            "What qualities and skills are needed to run a successful small business?",
+        ],
+        "part4_context": "The club plans to help local people start small businesses. It can create a call centre or offer free courses with local universities.",
+        "informal": "Write to a friend. Choose one option and explain why it is useful.",
+        "formal": "Write to the club manager. Recommend one option and give clear reasons for your choice.",
+        "hints": ["choose free courses", "learn practical knowledge and skills", "improve job opportunities", "support the local community"],
+    },
+    "Film Club": {
+        "part2": "When and where do you watch movies?",
+        "part3": [
+            "Tell me about the last time you watched a movie.",
+            "I often fall asleep while watching films. What can I do to stay awake?",
+            "Some people say old black-and-white films are outdated and should not be watched. What do you think?",
+        ],
+        "part4_context": "The club wants to invite a famous film critic to its next meeting.",
+        "informal": "Write to a friend. Suggest a critic and topics for the meeting.",
+        "formal": "Write to the club organiser. Recommend a critic and explain which topics would interest members.",
+        "hints": ["an experienced critic", "what makes a successful movie", "acting and story", "local films compared with foreign films"],
+    },
+    "Television Club": {
+        "part2": "Do you usually watch TV?",
+        "part3": [
+            "How do you relax in front of the TV?",
+            "Do you prefer watching TV alone or with other people?",
+            "Watching too much TV is not good for children. What do you think?",
+        ],
+        "part4_context": "This week's talk show has been cancelled because the guests are unexpectedly busy, and there is no backup plan.",
+        "informal": "Write to a friend. Describe your feelings and say what you would like to do instead.",
+        "formal": "Write to the club manager. Describe your feelings and suggest what the club should do.",
+        "hints": ["reschedule the talk", "invite another experienced speaker", "hold an online activity", "offer a discount for the next event"],
+    },
+}
+
+
+def _word_count(text: str) -> int:
+    return len(re.findall(r"\b[\w’'-]+\b", text or "", flags=re.UNICODE))
+
+
+def _render_source_note(text: str):
+    st.markdown(f'<div class="study-note">{escape(text)}</div>', unsafe_allow_html=True)
+
+
+def _render_listening_practice():
+    st.markdown('<div class="main-title">🎧 Listening trọng điểm</div>', unsafe_allow_html=True)
+    _render_source_note(
+        "Luyện theo thẻ nhớ: đọc yêu cầu, tự nhắc lại đáp án, rồi mới lật thẻ. "
+        "App chỉ hiển thị các chủ đề trọng điểm đã đối chiếu từ bộ dự đoán."
+    )
+    st.caption("Cách học: nghe/nhớ → ghi từ khóa → chọn đáp án → lật thẻ → nhắc lại bằng tiếng Anh.")
+
+    part_name = st.radio(
+        "Chọn dạng bài:",
+        list(LISTENING_FOCUS_DATA),
+        horizontal=True,
+        key="listening_part",
+    )
+    topics = LISTENING_FOCUS_DATA[part_name]
+    topic_index = st.selectbox(
+        "Chọn chủ đề trọng điểm:",
+        range(len(topics)),
+        format_func=lambda index: topics[index]["title"],
+        key=f"listening_topic_{part_name}",
+    )
+    topic = topics[topic_index]
+
+    st.subheader(topic["title"])
+    st.write(topic["instruction"])
+    st.text_area(
+        "✍️ Ghi đáp án hoặc từ bạn nhớ được trước khi lật thẻ:",
+        key=f"listening_notes_{topic['id']}",
+        height=120,
+        placeholder="Ví dụ: A - ..., B - ..., C - ..., D - ...",
+    )
+    show_answer = st.checkbox("👁️ Lật thẻ xem đáp án", key=f"listen_reveal_{topic['id']}")
+    if show_answer:
+        st.success("Đáp án trọng tâm")
+        for answer in topic["answers"]:
+            st.markdown(f"- {answer}")
+        st.caption("Mẹo: " + topic["tip"])
+    else:
+        st.info("Hãy thử nhớ hoặc nghe lại trước khi mở đáp án.")
+
+
+def _render_reading_order_exercise(item):
+    st.subheader(item["title"])
+    st.markdown(f"**Câu mở đầu:** {item['intro']}")
+    st.caption("Chọn một câu cho mỗi vị trí. Không dùng một câu hai lần.")
+
+    sentence_count = len(item["sentences"])
+    shuffle_order = [2, 4, 0, 3, 1][:sentence_count]
+    selected = []
+    for position in range(sentence_count):
+        answer_index = st.selectbox(
+            f"Vị trí {position + 1}",
+            [-1] + shuffle_order,
+            format_func=lambda index, sentences=item["sentences"]: (
+                "— Chọn câu —" if index == -1 else sentences[index]
+            ),
+            key=f"reading_order_{item['id']}_{position}",
+        )
+        selected.append(answer_index)
+
+    result_key = f"reading_result_{item['id']}"
+    if st.button("✅ Kiểm tra thứ tự", type="primary", key=f"reading_check_{item['id']}"):
+        if -1 in selected:
+            st.session_state[result_key] = {
+                "selected": tuple(selected),
+                "message": "Bạn chưa chọn đủ 5 vị trí.",
+                "kind": "warning",
+            }
+        elif len(set(selected)) != sentence_count:
+            st.session_state[result_key] = {
+                "selected": tuple(selected),
+                "message": "Mỗi câu chỉ được dùng một lần.",
+                "kind": "warning",
+            }
+        else:
+            score = sum(index == position for position, index in enumerate(selected))
+            st.session_state[result_key] = {
+                "selected": tuple(selected),
+                "message": f"Bạn xếp đúng {score}/{sentence_count} vị trí.",
+                "kind": "success" if score == sentence_count else "error",
+            }
+
+    saved_result = st.session_state.get(result_key)
+    if saved_result and saved_result.get("selected") == tuple(selected):
+        getattr(st, saved_result["kind"])(saved_result["message"])
+
+    with st.expander("👁️ Xem thứ tự đúng"):
+        for number, sentence in enumerate(item["sentences"], start=1):
+            st.markdown(f"{number}. {sentence}")
+
+
+def _render_reading_practice():
+    st.markdown('<div class="main-title">📖 Reading trọng điểm</div>', unsafe_allow_html=True)
+    _render_source_note(
+        "Các bài dưới đây ưu tiên đúng nhóm xuất hiện nhiều: sắp xếp câu, "
+        "ghép thông tin và chuỗi từ khóa ghép tiêu đề."
+    )
+    mode = st.radio(
+        "Chọn cách luyện:",
+        ["Part 2 - Sắp xếp câu", "Chuỗi từ khóa ghép tiêu đề", "Danh sách Part 3 trọng điểm"],
+        horizontal=True,
+        key="reading_mode",
+    )
+
+    if mode == "Part 2 - Sắp xếp câu":
+        item_index = st.selectbox(
+            "Chọn bài:",
+            range(len(READING_ORDER_DATA)),
+            format_func=lambda index: READING_ORDER_DATA[index]["title"],
+            key="reading_order_topic",
+        )
+        _render_reading_order_exercise(READING_ORDER_DATA[item_index])
+    elif mode == "Chuỗi từ khóa ghép tiêu đề":
+        item_index = st.selectbox(
+            "Chọn bài:",
+            range(len(READING_KEYWORD_DATA)),
+            format_func=lambda index: READING_KEYWORD_DATA[index]["title"],
+            key="reading_keyword_topic",
+        )
+        item = READING_KEYWORD_DATA[item_index]
+        st.subheader(item["title"])
+        st.write("Tự nhớ thứ tự từ khóa trước, sau đó lật thẻ để kiểm tra.")
+        st.text_input(
+            "Nhập chuỗi bạn nhớ:",
+            key=f"keyword_memory_{item['id']}",
+            placeholder="keyword 1 → keyword 2 → ...",
+        )
+        if st.checkbox("👁️ Lật thẻ từ khóa", key=f"keyword_reveal_{item['id']}"):
+            for number, (keyword, meaning) in enumerate(item["keywords"], start=1):
+                st.markdown(f"{number}. **{keyword}** — {meaning}")
+            st.info("🧠 Câu chuyện nhớ: " + item["memory"])
+    else:
+        st.subheader("Nhóm Part 3 cần ưu tiên")
+        st.caption("Dùng danh sách này để lọc bài trong bộ đề; chưa trộn thêm chủ đề ngoài trọng điểm.")
+        for number, topic in enumerate(READING_MATCHING_FOCUS, start=1):
+            st.markdown(f"{number}. **{topic}**")
+        st.info("Khi làm bài ghép người nói, gạch chân thái độ, trải nghiệm và từ nối đối lập của từng người.")
+
+
+def _writing_text_area(label: str, key: str, minimum: int, maximum: int, height: int):
+    text_value = st.text_area(label, key=key, height=height)
+    count = _word_count(text_value)
+    if count < minimum:
+        st.caption(f"🔸 {count} từ · còn thiếu ít nhất {minimum - count} từ (mục tiêu {minimum}–{maximum}).")
+    elif count > maximum:
+        st.caption(f"🔸 {count} từ · vượt {count - maximum} từ (mục tiêu {minimum}–{maximum}).")
+    else:
+        st.caption(f"✅ {count} từ · đúng khoảng mục tiêu {minimum}–{maximum}.")
+    return text_value
+
+
+def _render_writing_framework():
+    with st.expander("🧩 Khung viết dễ nhớ", expanded=True):
+        st.markdown("**Câu trả lời ngắn (Part 2–3): A–R–E**")
+        st.markdown("1. **Answer:** trả lời thẳng câu hỏi.")
+        st.markdown("2. **Reason:** nêu một lý do đơn giản với `because`.")
+        st.markdown("3. **Example:** thêm ví dụ thật với `for example` hoặc `last week`.")
+        st.markdown("**Thư thân mật:** `Dear + tên` → bối cảnh/cảm xúc → trả lời → `Write to me soon` → `Best wishes`.")
+        st.markdown("**Thư trang trọng:** `Dear Sir/Madam` → mục đích → cảm xúc/lý do → hai đề xuất → `I look forward to hearing from you` → `Best regards`.")
+
+
+def _render_writing_practice():
+    st.markdown('<div class="main-title">✍️ Writing trọng điểm</div>', unsafe_allow_html=True)
+    _render_source_note(
+        "Chỉ gồm các câu lạc bộ trọng điểm trong tài liệu dự đoán. "
+        "Bộ đếm từ giúp luyện đúng giới hạn, còn khung gợi ý dùng câu ngắn và dễ nhớ."
+    )
+    club_name = st.selectbox("Chọn chủ đề:", list(WRITING_FOCUS_DATA), key="writing_club")
+    task = WRITING_FOCUS_DATA[club_name]
+    part = st.radio(
+        "Chọn phần luyện:",
+        ["Part 2 - 20–45 từ", "Part 3 - 30–60 từ/câu", "Part 4 - Hai email"],
+        horizontal=True,
+        key="writing_part",
+    )
+
+    st.subheader(club_name)
+    if part.startswith("Part 2"):
+        st.markdown(f'<div class="question-box">❓ {escape(task["part2"])}</div>', unsafe_allow_html=True)
+        _writing_text_area(
+            "Bài viết của bạn:",
+            f"writing_p2_{club_name}",
+            minimum=20,
+            maximum=45,
+            height=160,
+        )
+        _render_writing_framework()
+    elif part.startswith("Part 3"):
+        question_index = st.selectbox(
+            "Chọn câu hỏi:",
+            range(len(task["part3"])),
+            format_func=lambda index: f"Câu {index + 1}: {task['part3'][index]}",
+            key=f"writing_p3_question_{club_name}",
+        )
+        question = task["part3"][question_index]
+        st.markdown(f'<div class="question-box">❓ {escape(question)}</div>', unsafe_allow_html=True)
+        _writing_text_area(
+            "Câu trả lời của bạn:",
+            f"writing_p3_{club_name}_{question_index}",
+            minimum=30,
+            maximum=60,
+            height=180,
+        )
+        _render_writing_framework()
+    else:
+        st.markdown(f"**Bối cảnh:** {task['part4_context']}")
+        informal_tab, formal_tab = st.tabs(["💬 Email thân mật", "📨 Email trang trọng"])
+        with informal_tab:
+            st.write(task["informal"])
+            _writing_text_area(
+                "Email gửi bạn:",
+                f"writing_p4_informal_{club_name}",
+                minimum=50,
+                maximum=75,
+                height=240,
+            )
+        with formal_tab:
+            st.write(task["formal"])
+            _writing_text_area(
+                "Email gửi quản lý/ban tổ chức:",
+                f"writing_p4_formal_{club_name}",
+                minimum=120,
+                maximum=225,
+                height=330,
+            )
+        with st.expander("💡 Ý dễ để triển khai", expanded=True):
+            for hint in task["hints"]:
+                st.markdown(f"- {hint}")
+            st.caption("Chọn 2–3 ý rồi giải thích bằng because + một ví dụ; không cần dùng từ nâng cao.")
+        _render_writing_framework()
+
+
+# ==============================================================================
 # GIAO DIỆN HỌC VIÊN
 # ==============================================================================
 with st.sidebar:
     st.image("https://img.icons8.com/clouds/200/microphone.png", width=95)
-    st.title("Aptis Speaking Coach")
-    st.caption("Chuẩn tiêu chí APTISPRO")
+    st.title("Aptis Practice Coach")
+    st.caption("Speaking · Listening · Reading · Writing")
+    selected_skill = st.radio(
+        "Chọn kỹ năng:",
+        ["Speaking", "Listening", "Reading", "Writing"],
+        key="selected_skill",
+    )
+
+if selected_skill != "Speaking":
+    with st.sidebar:
+        st.markdown("---")
+        st.caption(
+            "📌 Chỉ hiển thị nhóm trọng điểm từ tài liệu dự đoán đã cung cấp; "
+            "không trộn thêm đề ngoài danh sách."
+        )
+
+    if selected_skill == "Listening":
+        _render_listening_practice()
+    elif selected_skill == "Reading":
+        _render_reading_practice()
+    else:
+        _render_writing_practice()
+    st.stop()
+
+with st.sidebar:
+    st.caption("Speaking được chấm theo tiêu chí APTISPRO")
 
     part_options = ["Part 1: Personal Info", "Part 2: Describe Picture"]
     if PART3_DATA:
@@ -1424,7 +2232,13 @@ with st.sidebar:
         st.error(f"Không thể nạp Part 4: {PART4_LOAD_ERROR}")
 
     selected_part = st.radio("Chọn phần thi:", part_options, index=1)
-    st.caption("🔥 Đề trọng điểm tháng 9 được ghim ở đầu; các đề khác nằm phía dưới.")
+    st.caption(
+        f"🆕 Đề 29/08 và 🔥 chủ đề trọng điểm {RECENT_REVIEW_PERIOD} "
+        "được ghim ở đầu; các đề khác nằm phía dưới."
+    )
+    with st.expander(f"📌 Xu hướng {RECENT_REVIEW_PERIOD}"):
+        for topic_line in RECENT_TOPIC_SUMMARY[selected_part]:
+            st.markdown(f"- {topic_line}")
     
     st.markdown("---")
     if not GEMINI_API_KEYS:
@@ -1454,7 +2268,7 @@ with st.sidebar:
                 "part2",
                 item["id"],
                 f"Đề {item['id']}: "
-                f"{item['questions'][1] if len(item['questions']) > 1 else 'Picture ' + str(item['id'])}"
+                f"{item.get('title') or (item['questions'][1] if len(item['questions']) > 1 else 'Picture ' + str(item['id']))}"
             )
             for item in PART2_DATA
         ]
@@ -1466,7 +2280,9 @@ with st.sidebar:
     elif selected_part == "Part 3: Compare Pictures":
         p3_titles = [
             _frequency_label(
-                "part3", item["id"], f"Đề {item['id']}: {item['questions'][1]}"
+                "part3",
+                item["id"],
+                f"Đề {item['id']}: {item.get('title') or item['questions'][1]}"
             )
             for item in PART3_DATA
         ]
@@ -1481,7 +2297,7 @@ with st.sidebar:
                 "part4",
                 item["id"],
                 f"Chủ đề {item['id']}: "
-                f"{item['question'].splitlines()[0].removeprefix('1. ')}"
+                f"{item.get('title') or item['question'].splitlines()[0].removeprefix('1. ')}"
             )
             for item in PART4_DATA
         ]
@@ -1510,6 +2326,8 @@ with col_left:
             f'<div class="question-box">❓ {_question_box_text(curr_q["question"])}</div>',
             unsafe_allow_html=True
         )
+        if curr_q["id"] in MOCK_EXAM_IDS["part1"]:
+            st.caption("🆕 Câu này nằm trong Part 1 của bộ đề 29/08 — Helping Others.")
         active_question = curr_q["question"]
         coaching_context = f"{curr_q['topic']} {active_question}"
         active_img = None
@@ -1518,7 +2336,9 @@ with col_left:
     elif selected_part == "Part 2: Describe Picture":
         curr_p2 = PART2_DATA[selected_idx]
         st.markdown(f'<div class="main-title">🖼️ Part 2: Đề {curr_p2["id"]}</div>', unsafe_allow_html=True)
-        
+
+        if curr_p2.get("source") == MOCK_EXAM_SOURCE:
+            st.caption("🆕 Đề hoàn chỉnh 29/08 — Helping Others · ảnh và câu hỏi từ tài liệu đã cung cấp.")
         st.image(curr_p2["image"], use_container_width=True)
         
         sub_idx = st.radio(
@@ -1542,11 +2362,20 @@ with col_left:
         curr_p3 = PART3_DATA[selected_idx]
         st.markdown(f'<div class="main-title">🖼️ Part 3: Đề {curr_p3["id"]}</div>', unsafe_allow_html=True)
 
-        image_col_1, image_col_2 = st.columns(2, gap="small")
-        with image_col_1:
-            st.image(curr_p3["images"][0], caption="Picture 1", use_container_width=True)
-        with image_col_2:
-            st.image(curr_p3["images"][1], caption="Picture 2", use_container_width=True)
+        if curr_p3.get("source") == MOCK_EXAM_SOURCE:
+            st.caption("🆕 Đề hoàn chỉnh 29/08 — Helping Others · ảnh và câu hỏi từ tài liệu đã cung cấp.")
+        if len(curr_p3["images"]) == 1:
+            st.image(
+                curr_p3["images"][0],
+                caption="Picture 1 & Picture 2",
+                use_container_width=True
+            )
+        else:
+            image_col_1, image_col_2 = st.columns(2, gap="small")
+            with image_col_1:
+                st.image(curr_p3["images"][0], caption="Picture 1", use_container_width=True)
+            with image_col_2:
+                st.image(curr_p3["images"][1], caption="Picture 2", use_container_width=True)
 
         sub_idx = st.radio(
             "Chọn câu hỏi phụ cần luyện tập (45 giây/câu):",
@@ -1570,10 +2399,14 @@ with col_left:
         st.markdown(f'<div class="main-title">🧠 Part 4: Chủ đề {curr_p4["id"]}</div>', unsafe_allow_html=True)
         active_question = curr_p4["question"]
         coaching_context = active_question
-        active_img = None
+        active_img = curr_p4.get("image")
         target_time = 120
         active_item_key = f"p4-{curr_p4['id']}"
 
+        if curr_p4.get("source") == MOCK_EXAM_SOURCE:
+            st.caption("🆕 Đề hoàn chỉnh 29/08 — Helping Others · ảnh và câu hỏi từ tài liệu đã cung cấp.")
+        if active_img:
+            st.image(active_img, caption="Look at the photograph.", use_container_width=True)
         st.markdown(
             f'<div class="question-box">❓ {_question_box_text(active_question)}</div>',
             unsafe_allow_html=True
