@@ -26,6 +26,7 @@ MOCK_EXAM_IMAGE_DIR = APP_DIR / (
     "08. 29_08. CHỮA TRỌN 1 ĐỀ APTIS SPEAKING_ HIỂU ĐỀ THI _ "
     "CẦN CHUẨN BỊ GÌ TRƯỚC KỲ THI"
 ) / "images"
+DEPLOY_IMAGE_DIR = APP_DIR / "assets" / "mock_exam"
 
 
 def _available_image_source(image_source):
@@ -46,6 +47,30 @@ def _available_image_source(image_source):
     except (OSError, ValueError):
         return None
     return str(image_path) if image_path.is_file() else None
+
+
+def _display_image_safely(image_source, **image_options):
+    """Hiển thị ảnh mà không làm toàn bộ app sập nếu asset/URL có vấn đề."""
+    safe_source = _available_image_source(image_source)
+    if not safe_source:
+        return False
+    try:
+        st.image(safe_source, **image_options)
+    except Exception:
+        # Streamlit Cloud có thể báo MediaFileStorageError nếu file bị thiếu
+        # giữa lúc kiểm tra và lúc media manager đọc. Không hiển thị đường dẫn
+        # hoặc chi tiết exception để tránh lộ cấu trúc máy chủ.
+        return False
+    return True
+
+
+def _mock_exam_image(filename: str):
+    """Ưu tiên thư mục asset ngắn, vẫn tương thích với thư mục tài liệu cũ."""
+    for image_dir in (DEPLOY_IMAGE_DIR, MOCK_EXAM_IMAGE_DIR):
+        available_image = _available_image_source(str(image_dir / filename))
+        if available_image:
+            return available_image
+    return None
 
 
 def _get_secret(name, default=None):
@@ -229,7 +254,7 @@ PART2_DATA = [
 # Chỉ thêm đề ảnh cục bộ khi asset thật sự có trong bản deploy. Nhờ vậy, nếu
 # người dùng chỉ đẩy app.py lên Cloud mà quên thư mục ảnh, app vẫn mở được và
 # tự chuyển sang các đề dùng URL ở phía dưới.
-MOCK_PART2_IMAGE = _available_image_source(str(MOCK_EXAM_IMAGE_DIR / "image1.png"))
+MOCK_PART2_IMAGE = _mock_exam_image("image1.png")
 if MOCK_PART2_IMAGE:
     PART2_DATA.append({
         "id": 31,
@@ -282,7 +307,7 @@ except (OSError, json.JSONDecodeError, ValueError) as error:
     PART3_DATA = []
     PART3_LOAD_ERROR = str(error)
 
-MOCK_PART3_IMAGE = _available_image_source(str(MOCK_EXAM_IMAGE_DIR / "image3.png"))
+MOCK_PART3_IMAGE = _mock_exam_image("image3.png")
 if PART3_DATA and MOCK_PART3_IMAGE:
     PART3_DATA.append({
         "id": 50,
@@ -341,7 +366,7 @@ if PART4_DATA:
             "3. Should we help others even if it’s inconvenient?"
         )
     }
-    mock_part4_image = _available_image_source(str(MOCK_EXAM_IMAGE_DIR / "image2.png"))
+    mock_part4_image = _mock_exam_image("image2.png")
     if mock_part4_image:
         mock_part4_item["image"] = mock_part4_image
     PART4_DATA.append(mock_part4_item)
@@ -1581,6 +1606,69 @@ trả lời. Không dùng phần minh họa này làm bằng chứng chấm đi�
 # Các đáp án Listening/Reading được trình bày theo kiểu flashcard: tự nhớ trước,
 # sau đó mới lật đáp án. File nguồn riêng tư không được nhúng hoặc công khai lại.
 LISTENING_FOCUS_DATA = {
+    "Part 1 - Nhận diện thông tin": [
+        {
+            "id": "l1-phone",
+            "title": "Phone number",
+            "instruction": "What is Anna's new phone number?",
+            "script": (
+                "Hi Lan, this is Anna. Please save my new phone number. "
+                "It is zero seven nine three four, six one eight, two five zero. "
+                "Please call me this evening."
+            ),
+            "options": ["07934 681 250", "07934 618 250", "07943 618 250"],
+            "answer": "07934 618 250",
+            "tip": "Ghi từng nhóm số ngay khi nghe; đặc biệt chú ý các cặp 6/8 và 13/30.",
+        },
+        {
+            "id": "l1-time",
+            "title": "Departure time",
+            "instruction": "What time does the next train leave?",
+            "script": (
+                "The nine fifteen train to Bristol has been cancelled. "
+                "The next train leaves from platform four at nine forty-five."
+            ),
+            "options": ["9:15", "9:40", "9:45"],
+            "answer": "9:45",
+            "tip": "Thông tin đầu tiên thường là phương án gây nhiễu; chờ đến hết thông báo.",
+        },
+        {
+            "id": "l1-price",
+            "title": "Ticket price",
+            "instruction": "How much does a student ticket cost?",
+            "script": (
+                "A normal museum ticket costs twelve pounds. "
+                "Students with an identity card only pay eight pounds fifty."
+            ),
+            "options": ["£8.00", "£8.50", "£12.00"],
+            "answer": "£8.50",
+            "tip": "Xác định đúng đối tượng được hỏi trước khi chọn giá.",
+        },
+        {
+            "id": "l1-room",
+            "title": "Room number",
+            "instruction": "Where will the English class take place?",
+            "script": (
+                "Today's English class is not in room twelve. "
+                "Please go upstairs to room twenty-one instead."
+            ),
+            "options": ["Room 12", "Room 20", "Room 21"],
+            "answer": "Room 21",
+            "tip": "Nghe từ sửa thông tin như not, instead hoặc changed to.",
+        },
+        {
+            "id": "l1-day",
+            "title": "Meeting day",
+            "instruction": "When will the friends meet?",
+            "script": (
+                "I cannot meet you on Thursday as we planned. "
+                "Can we meet outside the library on Friday at six thirty instead?"
+            ),
+            "options": ["Thursday at 6:30", "Friday at 6:00", "Friday at 6:30"],
+            "answer": "Friday at 6:30",
+            "tip": "Kiểm tra cả ngày lẫn giờ; một lựa chọn có thể chỉ đúng một nửa.",
+        },
+    ],
     "Part 2 - Bốn người nói": [
         {
             "id": "l2-study-place",
@@ -1790,6 +1878,109 @@ LISTENING_FOCUS_DATA = {
 }
 
 
+READING_PART1_DATA = [
+    {
+        "id": "r1-photo-class",
+        "title": "Photography class",
+        "intro": "Hi Ben, I joined a photography class this month.",
+        "ending": "Would you like to come with me next week? Best wishes, Kim",
+        "items": [
+            {
+                "sentence": "The class meets every Tuesday _____.",
+                "options": ["evening", "weather", "table"],
+                "answer": "evening",
+            },
+            {
+                "sentence": "Our teacher shows us how to _____ clear photos.",
+                "options": ["take", "do", "bring"],
+                "answer": "take",
+            },
+            {
+                "sentence": "We often walk _____ the park to practise.",
+                "options": ["through", "during", "under"],
+                "answer": "through",
+            },
+            {
+                "sentence": "I always bring my camera _____ a small notebook.",
+                "options": ["and", "but", "because"],
+                "answer": "and",
+            },
+            {
+                "sentence": "I hope you can _____ our class.",
+                "options": ["join", "joins", "joined"],
+                "answer": "join",
+            },
+        ],
+    },
+    {
+        "id": "r1-cafe-job",
+        "title": "A new café job",
+        "intro": "Dear Sara, I have some news about my new café job.",
+        "ending": "Come and visit when you are free. Love, Nina",
+        "items": [
+            {
+                "sentence": "The café is _____ the train station.",
+                "options": ["near", "often", "early"],
+                "answer": "near",
+            },
+            {
+                "sentence": "I start work _____ eight o'clock each morning.",
+                "options": ["at", "on", "from"],
+                "answer": "at",
+            },
+            {
+                "sentence": "My manager is friendly and _____ me when I am busy.",
+                "options": ["helps", "help", "helping"],
+                "answer": "helps",
+            },
+            {
+                "sentence": "The customers usually _____ coffee and sandwiches.",
+                "options": ["order", "borrow", "teach"],
+                "answer": "order",
+            },
+            {
+                "sentence": "I am tired after work, _____ I enjoy the job.",
+                "options": ["but", "so", "because"],
+                "answer": "but",
+            },
+        ],
+    },
+    {
+        "id": "r1-weekend-trip",
+        "title": "Weekend trip",
+        "intro": "Hi Alex, our weekend trip is almost here.",
+        "ending": "Please tell me if you need any more information. See you, Tom",
+        "items": [
+            {
+                "sentence": "We will _____ at the bus station at seven.",
+                "options": ["meet", "met", "meeting"],
+                "answer": "meet",
+            },
+            {
+                "sentence": "Please arrive early _____ the bus cannot wait.",
+                "options": ["because", "although", "after"],
+                "answer": "because",
+            },
+            {
+                "sentence": "The journey will _____ about two hours.",
+                "options": ["take", "make", "have"],
+                "answer": "take",
+            },
+            {
+                "sentence": "You should bring a jacket in _____ the weather changes.",
+                "options": ["case", "time", "place"],
+                "answer": "case",
+            },
+            {
+                "sentence": "We can buy lunch when we _____ there.",
+                "options": ["arrive", "arrives", "arrived"],
+                "answer": "arrive",
+            },
+        ],
+    },
+]
+
+
 READING_ORDER_DATA = [
     {
         "id": "r-cafe",
@@ -1984,11 +2175,44 @@ def _render_source_note(text: str):
     st.markdown(f'<div class="study-note">{escape(text)}</div>', unsafe_allow_html=True)
 
 
+def _render_browser_speech(text: str, item_id: str):
+    """Phát đoạn luyện nghe bằng Web Speech API, không cần API key/backend TTS."""
+    button_id = "listen_" + re.sub(r"[^a-zA-Z0-9_-]", "_", item_id)
+    spoken_text = json.dumps(text, ensure_ascii=False).replace("</", "<\\/")
+    st.html(
+        f"""
+        <div style="font-family: sans-serif; display:flex; gap:8px; align-items:center;">
+          <button id="{button_id}" style="padding:9px 14px; border:0; border-radius:7px;
+            background:#2563eb; color:white; cursor:pointer; font-weight:600;">
+            ▶ Nghe đoạn ghi âm
+          </button>
+          <span style="font-size:13px; color:#64748b;">Có thể bấm lại để nghe lần 2.</span>
+        </div>
+        <script>
+          const button = document.getElementById({json.dumps(button_id)});
+          button.addEventListener("click", () => {{
+            if (!("speechSynthesis" in window)) {{
+              button.textContent = "Trình duyệt không hỗ trợ phát giọng đọc";
+              return;
+            }}
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance({spoken_text});
+            utterance.lang = "en-GB";
+            utterance.rate = 0.82;
+            utterance.pitch = 1;
+            window.speechSynthesis.speak(utterance);
+          }});
+        </script>
+        """,
+        unsafe_allow_javascript=True,
+    )
+
+
 def _render_listening_practice():
-    st.markdown('<div class="main-title">🎧 Listening trọng điểm</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-title">🎧 Listening</div>', unsafe_allow_html=True)
     _render_source_note(
-        "Luyện theo thẻ nhớ: đọc yêu cầu, tự nhắc lại đáp án, rồi mới lật thẻ. "
-        "App chỉ hiển thị các chủ đề trọng điểm đã đối chiếu từ bộ dự đoán."
+        "Part 1 là bộ ôn đủ dạng nhận diện thông tin, không gắn nhãn dự đoán. "
+        "Part 2–4 chỉ hiển thị các chủ đề trọng điểm đã đối chiếu từ bộ dự đoán."
     )
     st.caption("Cách học: nghe/nhớ → ghi từ khóa → chọn đáp án → lật thẻ → nhắc lại bằng tiếng Anh.")
 
@@ -2000,7 +2224,7 @@ def _render_listening_practice():
     )
     topics = LISTENING_FOCUS_DATA[part_name]
     topic_index = st.selectbox(
-        "Chọn chủ đề trọng điểm:",
+        "Chọn bài luyện:",
         range(len(topics)),
         format_func=lambda index: topics[index]["title"],
         key=f"listening_topic_{part_name}",
@@ -2009,20 +2233,85 @@ def _render_listening_practice():
 
     st.subheader(topic["title"])
     st.write(topic["instruction"])
-    st.text_area(
-        "✍️ Ghi đáp án hoặc từ bạn nhớ được trước khi lật thẻ:",
-        key=f"listening_notes_{topic['id']}",
-        height=120,
-        placeholder="Ví dụ: A - ..., B - ..., C - ..., D - ...",
-    )
-    show_answer = st.checkbox("👁️ Lật thẻ xem đáp án", key=f"listen_reveal_{topic['id']}")
-    if show_answer:
-        st.success("Đáp án trọng tâm")
-        for answer in topic["answers"]:
-            st.markdown(f"- {answer}")
-        st.caption("Mẹo: " + topic["tip"])
+    if "script" in topic:
+        st.caption("Ôn đủ dạng · không phải chủ đề dự đoán trọng điểm")
+        _render_browser_speech(topic["script"], topic["id"])
+        selected_answer = st.radio(
+            "Chọn đáp án:",
+            topic["options"],
+            index=None,
+            key=f"listening_l1_answer_{topic['id']}",
+        )
+        if st.button("✅ Kiểm tra đáp án", type="primary", key=f"listening_l1_check_{topic['id']}"):
+            if selected_answer is None:
+                st.warning("Hãy nghe và chọn một đáp án trước.")
+            elif selected_answer == topic["answer"]:
+                st.success("Chính xác!")
+            else:
+                st.error(f"Chưa đúng. Đáp án đúng là: {topic['answer']}")
+        with st.expander("👁️ Xem transcript và mẹo nghe"):
+            st.write(topic["script"])
+            st.caption("Mẹo: " + topic["tip"])
     else:
-        st.info("Hãy thử nhớ hoặc nghe lại trước khi mở đáp án.")
+        st.text_area(
+            "✍️ Ghi đáp án hoặc từ bạn nhớ được trước khi lật thẻ:",
+            key=f"listening_notes_{topic['id']}",
+            height=120,
+            placeholder="Ví dụ: A - ..., B - ..., C - ..., D - ...",
+        )
+        show_answer = st.checkbox("👁️ Lật thẻ xem đáp án", key=f"listen_reveal_{topic['id']}")
+        if show_answer:
+            st.success("Đáp án trọng tâm")
+            for answer in topic["answers"]:
+                st.markdown(f"- {answer}")
+            st.caption("Mẹo: " + topic["tip"])
+        else:
+            st.info("Hãy thử nhớ hoặc nghe lại trước khi mở đáp án.")
+
+
+def _render_reading_part1_exercise(item):
+    st.subheader(item["title"])
+    st.caption("Ôn đủ dạng · không phải chủ đề dự đoán trọng điểm")
+    st.markdown(f"**Mở đầu:** {item['intro']}")
+    selected_answers = []
+    for number, gap in enumerate(item["items"], start=1):
+        st.markdown(f"**{number}.** {gap['sentence']}")
+        selected_answers.append(
+            st.selectbox(
+                f"Chọn từ cho câu {number}",
+                ["— Chọn —"] + gap["options"],
+                key=f"reading_part1_{item['id']}_{number}",
+            )
+        )
+    st.markdown(f"**Kết:** {item['ending']}")
+
+    result_key = f"reading_part1_result_{item['id']}"
+    if st.button("✅ Kiểm tra 5 câu", type="primary", key=f"reading_part1_check_{item['id']}"):
+        if "— Chọn —" in selected_answers:
+            st.session_state[result_key] = {
+                "selected": tuple(selected_answers),
+                "kind": "warning",
+                "message": "Bạn chưa chọn đủ 5 câu.",
+            }
+        else:
+            score = sum(
+                selected == gap["answer"]
+                for selected, gap in zip(selected_answers, item["items"])
+            )
+            st.session_state[result_key] = {
+                "selected": tuple(selected_answers),
+                "kind": "success" if score == len(item["items"]) else "error",
+                "message": f"Bạn làm đúng {score}/{len(item['items'])} câu.",
+            }
+
+    saved_result = st.session_state.get(result_key)
+    if saved_result and saved_result.get("selected") == tuple(selected_answers):
+        getattr(st, saved_result["kind"])(saved_result["message"])
+
+    with st.expander("👁️ Xem đáp án đúng"):
+        for number, gap in enumerate(item["items"], start=1):
+            completed_sentence = gap["sentence"].replace("_____", f"**{gap['answer']}**")
+            st.markdown(f"{number}. {completed_sentence}")
 
 
 def _render_reading_order_exercise(item):
@@ -2076,19 +2365,32 @@ def _render_reading_order_exercise(item):
 
 
 def _render_reading_practice():
-    st.markdown('<div class="main-title">📖 Reading trọng điểm</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-title">📖 Reading</div>', unsafe_allow_html=True)
     _render_source_note(
-        "Các bài dưới đây ưu tiên đúng nhóm xuất hiện nhiều: sắp xếp câu, "
-        "ghép thông tin và chuỗi từ khóa ghép tiêu đề."
+        "Part 1 là bộ ôn đủ dạng hoàn thành câu, không gắn nhãn dự đoán. "
+        "Part 2 trở đi ưu tiên đúng các nhóm xuất hiện nhiều trong tài liệu."
     )
     mode = st.radio(
         "Chọn cách luyện:",
-        ["Part 2 - Sắp xếp câu", "Chuỗi từ khóa ghép tiêu đề", "Danh sách Part 3 trọng điểm"],
+        [
+            "Part 1 - Hoàn thành câu",
+            "Part 2 - Sắp xếp câu",
+            "Chuỗi từ khóa ghép tiêu đề",
+            "Danh sách Part 3 trọng điểm",
+        ],
         horizontal=True,
         key="reading_mode",
     )
 
-    if mode == "Part 2 - Sắp xếp câu":
+    if mode == "Part 1 - Hoàn thành câu":
+        item_index = st.selectbox(
+            "Chọn bài:",
+            range(len(READING_PART1_DATA)),
+            format_func=lambda index: READING_PART1_DATA[index]["title"],
+            key="reading_part1_topic",
+        )
+        _render_reading_part1_exercise(READING_PART1_DATA[item_index])
+    elif mode == "Part 2 - Sắp xếp câu":
         item_index = st.selectbox(
             "Chọn bài:",
             range(len(READING_ORDER_DATA)),
@@ -2367,9 +2669,12 @@ with col_left:
         if curr_p2.get("source") == MOCK_EXAM_SOURCE:
             st.caption("🆕 Đề hoàn chỉnh 29/08 — Helping Others · ảnh và câu hỏi từ tài liệu đã cung cấp.")
         active_img = _available_image_source(curr_p2.get("image"))
-        if active_img:
-            st.image(active_img, use_container_width=True)
-        else:
+        image_rendered = _display_image_safely(
+            active_img,
+            width="stretch",
+        )
+        if not image_rendered:
+            active_img = None
             st.warning(
                 "⚠️ Ảnh của đề này chưa có trong bản deploy. Hãy chọn đề khác "
                 "hoặc tải kèm thư mục ảnh lên repository."
@@ -2402,23 +2707,38 @@ with col_left:
             for image_source in curr_p3["images"]
         ]
         images_are_available = all(active_images)
+        images_rendered = False
         if not images_are_available:
             st.warning(
                 "⚠️ Một hoặc nhiều ảnh của đề chưa có trong bản deploy. Hãy chọn "
                 "đề khác hoặc tải kèm thư mục ảnh lên repository."
             )
         elif len(active_images) == 1:
-            st.image(
+            images_rendered = _display_image_safely(
                 active_images[0],
                 caption="Picture 1 & Picture 2",
-                use_container_width=True
+                width="stretch"
             )
         else:
             image_col_1, image_col_2 = st.columns(2, gap="small")
             with image_col_1:
-                st.image(active_images[0], caption="Picture 1", use_container_width=True)
+                first_image_rendered = _display_image_safely(
+                    active_images[0],
+                    caption="Picture 1",
+                    width="stretch",
+                )
             with image_col_2:
-                st.image(active_images[1], caption="Picture 2", use_container_width=True)
+                second_image_rendered = _display_image_safely(
+                    active_images[1],
+                    caption="Picture 2",
+                    width="stretch",
+                )
+            images_rendered = first_image_rendered and second_image_rendered
+        if images_are_available and not images_rendered:
+            st.warning(
+                "⚠️ Streamlit không thể mở ảnh của đề này. Bạn vẫn có thể chọn "
+                "đề khác để tiếp tục luyện tập."
+            )
 
         sub_idx = st.radio(
             "Chọn câu hỏi phụ cần luyện tập (45 giây/câu):",
@@ -2429,7 +2749,7 @@ with col_left:
         selected_sub_num = int(sub_idx.split(":")[0].replace("Câu ", "")) - 1
         active_question = curr_p3["questions"][selected_sub_num]
         coaching_context = " ".join(curr_p3["questions"])
-        active_img = active_images if images_are_available else None
+        active_img = active_images if images_rendered else None
         target_time = 45
         active_item_key = f"p3-{curr_p3['id']}-{selected_sub_num}"
 
@@ -2448,8 +2768,13 @@ with col_left:
 
         if curr_p4.get("source") == MOCK_EXAM_SOURCE:
             st.caption("🆕 Đề hoàn chỉnh 29/08 — Helping Others · ảnh và câu hỏi từ tài liệu đã cung cấp.")
-        if active_img:
-            st.image(active_img, caption="Look at the photograph.", use_container_width=True)
+        if active_img and not _display_image_safely(
+            active_img,
+            caption="Look at the photograph.",
+            width="stretch",
+        ):
+            active_img = None
+            st.warning("⚠️ Ảnh minh họa chưa có trong bản deploy; phần câu hỏi vẫn sử dụng được.")
         st.markdown(
             f'<div class="question-box">❓ {_question_box_text(active_question)}</div>',
             unsafe_allow_html=True
@@ -2524,7 +2849,7 @@ with col_left:
             f"{len(audio_bytes) / (1024 * 1024):.2f} MB"
         )
         
-        btn_eval = st.button("🚀 Chấm điểm APTISPRO ngay", type="primary", use_container_width=True)
+        btn_eval = st.button("🚀 Chấm điểm APTISPRO ngay", type="primary", width="stretch")
         if btn_eval:
             if not GEMINI_API_KEYS:
                 st.error("⚠️ Vui lòng cấu hình GEMINI_API_KEYS trong Streamlit Secrets!")

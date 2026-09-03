@@ -17,11 +17,11 @@ Một API key là đủ:
 
 ```toml
 GEMINI_API_KEY = "your-api-key"
-GEMINI_MODEL = "gemini-3.5-flash"
 ```
 
 Ứng dụng gửi WAV 16 kHz từ backend đến Gemini trong một request để chép lời và
-chấm điểm. Dữ liệu ghi âm không được gửi qua tài khoản đăng nhập ở trình duyệt.
+chấm điểm bằng model cố định `gemini-3.5-flash-lite`. Dữ liệu ghi âm không được
+gửi qua tài khoản đăng nhập ở trình duyệt.
 
 Nếu cấu hình nhiều key, cần lưu ý rate limit của Gemini áp dụng theo Google Cloud
 project, không áp dụng riêng cho từng key. Hai key cùng project vẫn dùng chung
@@ -37,3 +37,21 @@ RPM, TPM và RPD.
 Gemini giới hạn tổng request inline ở 20 MB. Ứng dụng dành tối đa 18 MB cho audio
 và ảnh để chừa chỗ cho prompt/schema. Bản WAV 16 kHz dài 120 giây thông thường chỉ
 khoảng 3.7 MB, nên không còn bị chặn bởi ngưỡng 5 MB cũ.
+
+## Đưa ảnh lên Streamlit Community Cloud
+
+Streamlit Cloud lấy file trực tiếp từ GitHub, vì vậy ảnh cũng phải được commit
+trong cùng repository. Tải ba file sau lên thư mục `assets/mock_exam/`:
+
+```text
+assets/mock_exam/image1.png
+assets/mock_exam/image2.png
+assets/mock_exam/image3.png
+```
+
+Trên GitHub: mở repository → vào `assets/mock_exam` → **Add file** →
+**Upload files** → kéo ba ảnh vào → **Commit changes**. Streamlit Cloud sẽ tự
+phát hiện commit và cập nhật app. Nếu chưa thấy thay đổi, vào **Manage app** và
+chọn **Reboot app**.
+
+Không tải `.streamlit/secrets.toml` hoặc API key lên GitHub.
