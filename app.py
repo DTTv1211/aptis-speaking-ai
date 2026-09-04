@@ -130,10 +130,9 @@ MAX_IMAGE_BYTES = 4 * 1024 * 1024
 # Retry có backoff giúp các lỗi 429/503 tạm thời không làm bài chấm thất bại ngay.
 GEMINI_RETRY_ATTEMPTS = 4
 GEMINI_REQUEST_TIMEOUT_MS = 180_000
-# 4096 token dễ làm JSON bị cắt giữa chừng với bài nói 45-120 giây vì response
-# còn chứa transcript và toàn bộ năm tiêu chí. Đây chỉ là trần, không buộc model
-# phải dùng hết số token.
-MAX_ASSESSMENT_OUTPUT_TOKENS = 16_384
+# 4096 token có thể làm JSON bị cắt với bài nói dài; 8192 vẫn đủ cho transcript,
+# năm tiêu chí và gợi ý nhưng nhẹ hơn đáng kể so với trần 16384 trước đây.
+MAX_ASSESSMENT_OUTPUT_TOKENS = 8_192
 
 st.set_page_config(
     page_title="Aptis Practice Coach",
@@ -1798,15 +1797,16 @@ def _api_error_code(error):
 
 
 def _should_try_next_key(error) -> bool:
-    """Chỉ đổi key khi key/project khác thực sự có thể giải quyết lỗi."""
+    """Đổi key/project sau khi retry nội bộ vẫn không xử lý được lỗi."""
     if not isinstance(error, errors.APIError):
         return False
 
     code = _api_error_code(error)
-    # 429 là quota/rate limit theo project; key thuộc project khác có thể dùng
-    # được. 401/403 là lỗi key/quyền. 5xx/408 là lỗi dịch vụ/kết nối nên đã được
-    # SDK retry với backoff và đổi API key thường không có tác dụng.
-    if code in {401, 403, 429}:
+    # 429 là quota/rate limit theo project; 401/403 là lỗi key/quyền. Với lỗi
+    # tạm thời 408/5xx, SDK đã retry cùng key trước khi tới đây. Free tier dùng
+    # capacity có thể bị shed theo project/route, nên thử project kế tiếp vẫn có
+    # khả năng thành công và đúng mục đích của danh sách GEMINI_API_KEYS.
+    if code in {401, 403, 408, 429, 499, 500, 502, 503, 504}:
         return True
 
     # Gemini Developer API có thể trả 400 cho API key không hợp lệ. Không xoay
@@ -1829,10 +1829,15 @@ def _api_failure_message(failed_codes) -> str:
             "chỉ key thuộc project khác mới có hạn mức độc lập."
         )
     if any(code in {500, 502, 503, 504} for code in codes):
+        failover_note = (
+            f" Ứng dụng đã thử {len(codes)} API key/project."
+            if len(codes) > 1
+            else ""
+        )
         return (
             "Gemini đang quá tải hoặc tạm thời không khả dụng"
             f"{detail}. Đây không phải thông báo hết quota; ứng dụng đã tự thử lại "
-            "với backoff. Hãy đợi một lúc rồi chấm lại."
+            f"với backoff.{failover_note} Hãy đợi một lúc rồi chấm lại."
         )
     if any(code in {401, 403} for code in codes):
         return (
@@ -1853,6 +1858,9 @@ def _generate_with_key_failover(api_keys, generate_request):
 
     state = _get_api_key_failover_state(len(api_keys))
     failed_codes = []
+    # Một key: ưu tiên retry sâu. Nhiều key/project: retry ngắn trên từng key rồi
+    # failover, tránh 5 key × 4 lần thử khiến người học phải chờ quá lâu.
+    attempts_per_key = GEMINI_RETRY_ATTEMPTS if len(api_keys) == 1 else 2
 
     for attempt_number, key_index in enumerate(state.candidate_indices(), start=1):
         client = genai.Client(
@@ -1860,7 +1868,7 @@ def _generate_with_key_failover(api_keys, generate_request):
             http_options=types.HttpOptions(
                 timeout=GEMINI_REQUEST_TIMEOUT_MS,
                 retry_options=types.HttpRetryOptions(
-                    attempts=GEMINI_RETRY_ATTEMPTS,
+                    attempts=attempts_per_key,
                     initial_delay=1.0,
                     max_delay=8.0,
                     exp_base=2.0,
@@ -4056,7 +4064,7 @@ with col_left:
             else:
                 with st.spinner(
                     "AI đang chép lời và chấm trong một lượt "
-                    "(thường 30–90 giây; lỗi tạm thời sẽ tự thử lại)..."
+                    "(lỗi 429/503 sẽ tự retry và chuyển key dự phòng)..."
                 ):
                     try:
                         result = evaluate_audio(
