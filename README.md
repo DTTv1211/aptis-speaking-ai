@@ -23,6 +23,20 @@ GEMINI_API_KEY = "your-api-key"
 chấm điểm bằng model cố định `gemini-3.5-flash-lite`. Dữ liệu ghi âm không được
 gửi qua tài khoản đăng nhập ở trình duyệt.
 
+## Tối ưu tốc độ và chất lượng
+
+- Speaking và Writing đều chỉ dùng **một request Gemini cho mỗi lần chấm
+  thành công**. Retry chỉ phát sinh khi Gemini trả lỗi 408/429/5xx.
+- Gemini client và HTTP client được cache theo process để tái sử dụng kết nối,
+  không tạo lại TLS connection sau mỗi lần Streamlit rerun.
+- Gemini 3.x dùng `thinking_level=LOW`: nhanh hơn mức mặc định nhưng vẫn đủ
+  suy luận cho chép lời, chấm Aptis và sửa bài. Không ép `temperature` hoặc
+  `candidate_count`; quy tắc chấm và JSON schema giữ đầu ra ổn định.
+- JSON đề thi, ảnh từ xa và các gợi ý cục bộ được cache. Bản WAV cũ không
+  bị decode/hash lại khi người học chỉ thao tác trên giao diện.
+- Phiên bản dependency được khóa trong `requirements.txt` để deploy có hành vi
+  nhất quán. Kết quả hiển thị cả số request và thời gian xử lý thực tế.
+
 Nếu cấu hình nhiều key, cần lưu ý rate limit của Gemini áp dụng theo Google Cloud
 project, không áp dụng riêng cho từng key. Hai key cùng project vẫn dùng chung
 RPM, TPM và RPD.
