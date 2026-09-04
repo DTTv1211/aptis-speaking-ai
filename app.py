@@ -1842,16 +1842,15 @@ def _api_error_code(error):
 
 
 def _should_try_next_key(error) -> bool:
-    """Đổi key/project sau khi retry nội bộ vẫn không xử lý được lỗi."""
+    """Chỉ đổi key khi lỗi có khả năng gắn với key hoặc quota của project."""
     if not isinstance(error, errors.APIError):
         return False
 
     code = _api_error_code(error)
-    # 429 là quota/rate limit theo project; 401/403 là lỗi key/quyền. Với lỗi
-    # tạm thời 408/5xx, SDK đã retry cùng key trước khi tới đây. Free tier dùng
-    # capacity có thể bị shed theo project/route, nên thử project kế tiếp vẫn có
-    # khả năng thành công và đúng mục đích của danh sách GEMINI_API_KEYS.
-    if code in {401, 403, 408, 429, 499, 500, 502, 503, 504}:
+    # 429 là quota/rate limit theo project; 401/403 là lỗi key/quyền. Các lỗi
+    # 408/499/5xx là lỗi tạm thời của dịch vụ hoặc kết nối: retry cùng key bằng
+    # exponential backoff, không phát tán thêm request sang các key cùng project.
+    if code in {401, 403, 429}:
         return True
 
     # Gemini Developer API có thể trả 400 cho API key không hợp lệ. Không xoay
@@ -1903,12 +1902,10 @@ def _generate_with_key_failover(api_keys, generate_request):
 
     state = _get_api_key_failover_state(len(api_keys))
     failed_codes = []
-    # Một key: ưu tiên retry sâu. Nhiều key/project: retry ngắn trên từng key rồi
-    # failover, tránh 5 key × 4 lần thử khiến người học phải chờ quá lâu.
-    attempts_per_key = GEMINI_RETRY_ATTEMPTS if len(api_keys) == 1 else 2
-
     for attempt_number, key_index in enumerate(state.candidate_indices(), start=1):
-        client = _get_genai_client(api_keys[key_index], attempts_per_key)
+        # Giữ đủ 4 lần retry cho lỗi 503. Failover chỉ xảy ra với 401/403/429,
+        # nên một lỗi capacity không thể bị nhân lên theo số API key.
+        client = _get_genai_client(api_keys[key_index], GEMINI_RETRY_ATTEMPTS)
         try:
             response = generate_request(client)
             state.mark_success(key_index)
