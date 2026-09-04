@@ -1936,6 +1936,7 @@ def _structured_generation_config(system_instruction, response_schema, max_outpu
         system_instruction=system_instruction,
         response_mime_type="application/json",
         response_schema=response_schema,
+        automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         thinking_config=types.ThinkingConfig(
             thinking_level=types.ThinkingLevel.LOW,
             include_thoughts=False,
