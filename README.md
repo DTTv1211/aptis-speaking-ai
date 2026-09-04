@@ -15,7 +15,8 @@ streamlit run app.py
 
 Chọn **🎲 Tạo bộ đề ngẫu nhiên** trong thanh bên để lấy một lượt luyện hoàn chỉnh:
 
-- Speaking: 3 câu Part 1 và một đề cho mỗi Part 2, 3, 4.
+- Speaking: 3 câu Part 1 và một đề cho mỗi Part 2, 3, 4, chỉ lấy từ nhóm
+  **trọng điểm** đã được đánh dấu trong app.
 - Listening: một bài ở mỗi Part 1–4.
 - Reading: một bài ở mỗi Part 1–4.
 - Writing: Part 2, một câu Part 3 và Part 4 của cùng một chủ đề.

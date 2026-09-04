@@ -3768,6 +3768,12 @@ def _random_item_id(items, generator):
     return generator.choice(items)["id"] if items else None
 
 
+def _high_frequency_items(items, part_key):
+    """Chỉ trả về các đề Speaking đã được đánh dấu trọng điểm."""
+    priority_ids = set(HIGH_FREQUENCY_SPEAKING_IDS.get(part_key, ()))
+    return [item for item in items if item.get("id") in priority_ids]
+
+
 def _item_index_by_id(items, item_id):
     """Tìm lại index từ id để bộ đề vẫn ổn định khi danh sách được sắp xếp lại."""
     for index, item in enumerate(items):
@@ -3779,8 +3785,16 @@ def _item_index_by_id(items, item_id):
 def _build_random_exam():
     """Lấy ngẫu nhiên từ ngân hàng cục bộ; không gọi Gemini/không tốn quota."""
     generator = random.SystemRandom()
-    part1_count = min(3, len(PART1_QUESTIONS))
-    part1_ids = [item["id"] for item in generator.sample(PART1_QUESTIONS, part1_count)]
+    speaking_pools = {
+        "part1": _high_frequency_items(PART1_QUESTIONS, "part1"),
+        "part2": _high_frequency_items(PART2_DATA, "part2"),
+        "part3": _high_frequency_items(PART3_DATA, "part3"),
+        "part4": _high_frequency_items(PART4_DATA, "part4"),
+    }
+    part1_count = min(3, len(speaking_pools["part1"]))
+    part1_ids = [
+        item["id"] for item in generator.sample(speaking_pools["part1"], part1_count)
+    ]
     writing_club = generator.choice(list(WRITING_FOCUS_DATA))
     writing_task = WRITING_FOCUS_DATA[writing_club]
 
@@ -3789,9 +3803,9 @@ def _build_random_exam():
         "nonce": f"{time.time_ns():x}"[-10:],
         "speaking": {
             "part1_ids": part1_ids,
-            "part2_id": _random_item_id(PART2_DATA, generator),
-            "part3_id": _random_item_id(PART3_DATA, generator),
-            "part4_id": _random_item_id(PART4_DATA, generator),
+            "part2_id": _random_item_id(speaking_pools["part2"], generator),
+            "part3_id": _random_item_id(speaking_pools["part3"], generator),
+            "part4_id": _random_item_id(speaking_pools["part4"], generator),
         },
         "listening": {
             part_name: _random_item_id(topics, generator)
