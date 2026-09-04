@@ -4,6 +4,7 @@ import hashlib
 import json
 import io
 import os
+import random
 import re
 import threading
 import time
@@ -3758,27 +3759,302 @@ def _render_writing_practice():
 
 
 # ==============================================================================
+# BỘ ĐỀ NGẪU NHIÊN ĐỦ BỐN KỸ NĂNG
+# ==============================================================================
+RANDOM_EXAM_VERSION = 1
+
+
+def _random_item_id(items, generator):
+    return generator.choice(items)["id"] if items else None
+
+
+def _item_index_by_id(items, item_id):
+    """Tìm lại index từ id để bộ đề vẫn ổn định khi danh sách được sắp xếp lại."""
+    for index, item in enumerate(items):
+        if item.get("id") == item_id:
+            return index
+    return 0
+
+
+def _build_random_exam():
+    """Lấy ngẫu nhiên từ ngân hàng cục bộ; không gọi Gemini/không tốn quota."""
+    generator = random.SystemRandom()
+    part1_count = min(3, len(PART1_QUESTIONS))
+    part1_ids = [item["id"] for item in generator.sample(PART1_QUESTIONS, part1_count)]
+    writing_club = generator.choice(list(WRITING_FOCUS_DATA))
+    writing_task = WRITING_FOCUS_DATA[writing_club]
+
+    return {
+        "version": RANDOM_EXAM_VERSION,
+        "nonce": f"{time.time_ns():x}"[-10:],
+        "speaking": {
+            "part1_ids": part1_ids,
+            "part2_id": _random_item_id(PART2_DATA, generator),
+            "part3_id": _random_item_id(PART3_DATA, generator),
+            "part4_id": _random_item_id(PART4_DATA, generator),
+        },
+        "listening": {
+            part_name: _random_item_id(topics, generator)
+            for part_name, topics in LISTENING_FOCUS_DATA.items()
+        },
+        "reading": {
+            "part1_id": _random_item_id(READING_PART1_DATA, generator),
+            "part2_id": _random_item_id(READING_ORDER_DATA, generator),
+            "part3_id": _random_item_id(READING_PART3_DATA, generator),
+            "part4_id": _random_item_id(READING_KEYWORD_DATA, generator),
+        },
+        "writing": {
+            "club": writing_club,
+            "part3_question": generator.randrange(len(writing_task["part3"])),
+        },
+    }
+
+
+def _create_random_exam(open_page=True):
+    st.session_state["random_exam"] = _build_random_exam()
+    if open_page:
+        st.session_state["selected_skill"] = "Đề ngẫu nhiên"
+
+
+def _current_random_exam():
+    exam = st.session_state.get("random_exam")
+    if not isinstance(exam, dict) or exam.get("version") != RANDOM_EXAM_VERSION:
+        exam = _build_random_exam()
+        st.session_state["random_exam"] = exam
+    return exam
+
+
+def _open_random_practice(skill, widget_values):
+    """Callback chạy trước rerun nên có thể chuyển đúng widget đích."""
+    for key, value in widget_values.items():
+        st.session_state[key] = value
+    st.session_state["selected_skill"] = skill
+
+
+def _render_random_exam():
+    exam = _current_random_exam()
+    nonce = exam["nonce"]
+    st.markdown('<div class="main-title">🎲 Bộ đề ngẫu nhiên đủ 4 kỹ năng</div>', unsafe_allow_html=True)
+    st.caption(
+        "Bộ đề được lấy từ ngân hàng hiện có và giữ nguyên khi bạn "
+        "chuyển qua lại các kỹ năng. Tạo đề không gọi Gemini và không tốn quota."
+    )
+    st.button(
+        "🔄 Tạo một bộ đề khác",
+        type="primary",
+        width="stretch",
+        key=f"regenerate_random_exam_{nonce}",
+        on_click=_create_random_exam,
+        args=(False,),
+    )
+
+    overview_columns = st.columns(4)
+    for column, label, value in zip(
+        overview_columns,
+        ("🎙️ Speaking", "🎧 Listening", "📖 Reading", "✍️ Writing"),
+        ("Part 1–4", "Part 1–4", "Part 1–4", "Part 2–4"),
+    ):
+        with column:
+            st.metric(label, value)
+
+    speaking_tab, listening_tab, reading_tab, writing_tab = st.tabs(
+        ["🎙️ Speaking", "🎧 Listening", "📖 Reading", "✍️ Writing"]
+    )
+
+    with speaking_tab:
+        speaking_exam = exam["speaking"]
+        st.markdown("#### Part 1 · 3 câu cá nhân · 30 giây/câu")
+        for number, item_id in enumerate(speaking_exam["part1_ids"], start=1):
+            item_index = _item_index_by_id(PART1_QUESTIONS, item_id)
+            item = PART1_QUESTIONS[item_index]
+            question_column, button_column = st.columns([4, 1])
+            with question_column:
+                st.write(f"{number}. {item['question']}")
+            with button_column:
+                st.button(
+                    "Mở câu",
+                    key=f"random_open_sp1_{item_id}_{nonce}",
+                    width="stretch",
+                    on_click=_open_random_practice,
+                    args=(
+                        "Speaking",
+                        {
+                            "speaking_part": "Part 1: Personal Info",
+                            "speaking_p1_index": item_index,
+                        },
+                    ),
+                )
+
+        speaking_sections = [
+            (
+                "Part 2 · Miêu tả ảnh",
+                PART2_DATA,
+                speaking_exam.get("part2_id"),
+                "Part 2: Describe Picture",
+                "speaking_p2_index",
+            ),
+            (
+                "Part 3 · So sánh hai tranh",
+                PART3_DATA,
+                speaking_exam.get("part3_id"),
+                "Part 3: Compare Pictures",
+                "speaking_p3_index",
+            ),
+            (
+                "Part 4 · Long turn",
+                PART4_DATA,
+                speaking_exam.get("part4_id"),
+                "Part 4: Long Turn",
+                "speaking_p4_index",
+            ),
+        ]
+        for section_title, source_items, item_id, part_value, index_key in speaking_sections:
+            if not source_items or item_id is None:
+                continue
+            item_index = _item_index_by_id(source_items, item_id)
+            item = source_items[item_index]
+            with st.container(border=True):
+                st.markdown(f"**{section_title}**")
+                st.caption(item.get("title") or f"Đề {item_id}")
+                questions = item.get("questions") or [item.get("question", "")]
+                for question in questions:
+                    if question:
+                        st.write(f"- {question}")
+                st.button(
+                    f"Mở {section_title.split('·')[0].strip()}",
+                    key=f"random_open_{index_key}_{item_id}_{nonce}",
+                    width="stretch",
+                    on_click=_open_random_practice,
+                    args=(
+                        "Speaking",
+                        {"speaking_part": part_value, index_key: item_index},
+                    ),
+                )
+
+    with listening_tab:
+        st.caption("Mỗi Part lấy một bài. Mở bài để nghe, làm và kiểm tra đáp án.")
+        for part_name, topics in LISTENING_FOCUS_DATA.items():
+            item_id = exam["listening"].get(part_name)
+            if not topics or item_id is None:
+                continue
+            item_index = _item_index_by_id(topics, item_id)
+            item = topics[item_index]
+            with st.container(border=True):
+                st.markdown(f"**{part_name} · {item['title']}**")
+                st.write(item["instruction"])
+                st.button(
+                    "🎧 Mở bài Listening này",
+                    key=f"random_open_listening_{item_id}_{nonce}",
+                    width="stretch",
+                    on_click=_open_random_practice,
+                    args=(
+                        "Listening",
+                        {
+                            "listening_part": part_name,
+                            f"listening_topic_{part_name}": item_index,
+                        },
+                    ),
+                )
+
+    with reading_tab:
+        reading_sections = [
+            ("Part 1 · Hoàn thành câu", READING_PART1_DATA, "part1_id", "Part 1 - Hoàn thành câu", "reading_part1_topic"),
+            ("Part 2 · Sắp xếp câu", READING_ORDER_DATA, "part2_id", "Part 2 - Sắp xếp câu", "reading_order_topic"),
+            ("Part 3 · Ghép người nói", READING_PART3_DATA, "part3_id", "Part 3 - Ghép người nói", "reading_part3_topic"),
+            ("Part 4 · Ghép tiêu đề/từ khóa", READING_KEYWORD_DATA, "part4_id", "Chuỗi từ khóa ghép tiêu đề", "reading_keyword_topic"),
+        ]
+        for section_title, source_items, id_key, mode, topic_key in reading_sections:
+            item_id = exam["reading"].get(id_key)
+            if not source_items or item_id is None:
+                continue
+            item_index = _item_index_by_id(source_items, item_id)
+            item = source_items[item_index]
+            with st.container(border=True):
+                st.markdown(f"**{section_title} · {item['title']}**")
+                st.button(
+                    "📖 Mở bài Reading này",
+                    key=f"random_open_reading_{id_key}_{item_id}_{nonce}",
+                    width="stretch",
+                    on_click=_open_random_practice,
+                    args=(
+                        "Reading",
+                        {"reading_mode": mode, topic_key: item_index},
+                    ),
+                )
+
+    with writing_tab:
+        writing_exam = exam["writing"]
+        club_name = writing_exam["club"]
+        task = WRITING_FOCUS_DATA[club_name]
+        part3_index = min(writing_exam["part3_question"], len(task["part3"]) - 1)
+        st.subheader(club_name)
+        writing_sections = [
+            ("Part 2 · 20–45 từ", task["part2"], "Part 2 - 20–45 từ", {}),
+            (
+                "Part 3 · 30–60 từ",
+                task["part3"][part3_index],
+                "Part 3 - 30–60 từ/câu",
+                {f"writing_p3_question_{club_name}": part3_index},
+            ),
+            (
+                "Part 4 · Hai email",
+                f"{task['part4_context']} {task['informal']} {task['formal']}",
+                "Part 4 - Hai email",
+                {},
+            ),
+        ]
+        for section_title, question, part_value, extra_values in writing_sections:
+            with st.container(border=True):
+                st.markdown(f"**{section_title}**")
+                st.write(question)
+                widget_values = {
+                    "writing_club": club_name,
+                    "writing_part": part_value,
+                    **extra_values,
+                }
+                st.button(
+                    f"✍️ Mở {section_title.split('·')[0].strip()}",
+                    key=f"random_open_writing_{part_value}_{nonce}",
+                    width="stretch",
+                    on_click=_open_random_practice,
+                    args=("Writing", widget_values),
+                )
+
+
+# ==============================================================================
 # GIAO DIỆN HỌC VIÊN
 # ==============================================================================
 with st.sidebar:
     st.image("https://img.icons8.com/clouds/200/microphone.png", width=95)
     st.title("Aptis Practice Coach")
     st.caption("Speaking · Listening · Reading · Writing")
+    st.button(
+        "🎲 Tạo bộ đề ngẫu nhiên",
+        type="primary",
+        width="stretch",
+        key="sidebar_random_exam",
+        on_click=_create_random_exam,
+    )
     selected_skill = st.radio(
         "Chọn kỹ năng:",
-        ["Speaking", "Listening", "Reading", "Writing"],
+        ["Speaking", "Listening", "Reading", "Writing", "Đề ngẫu nhiên"],
         key="selected_skill",
     )
 
 if selected_skill != "Speaking":
     with st.sidebar:
         st.markdown("---")
-        st.caption(
-            "📌 Chỉ hiển thị nhóm trọng điểm từ tài liệu dự đoán đã cung cấp; "
-            "không trộn thêm đề ngoài danh sách."
-        )
+        if selected_skill == "Đề ngẫu nhiên":
+            st.caption("🎲 Bộ đề giữ nguyên trong phiên cho tới khi bạn chủ động tạo bộ mới.")
+        else:
+            st.caption(
+                "📌 Chỉ hiển thị nhóm trọng điểm từ tài liệu dự đoán đã cung cấp; "
+                "không trộn thêm đề ngoài danh sách."
+            )
 
-    if selected_skill == "Listening":
+    if selected_skill == "Đề ngẫu nhiên":
+        _render_random_exam()
+    elif selected_skill == "Listening":
         _render_listening_practice()
     elif selected_skill == "Reading":
         _render_reading_practice()
@@ -3799,7 +4075,12 @@ with st.sidebar:
     elif PART4_LOAD_ERROR:
         st.error(f"Không thể nạp Part 4: {PART4_LOAD_ERROR}")
 
-    selected_part = st.radio("Chọn phần thi:", part_options, index=1)
+    selected_part = st.radio(
+        "Chọn phần thi:",
+        part_options,
+        index=None if "speaking_part" in st.session_state else 1,
+        key="speaking_part",
+    )
     st.caption(
         f"🆕 Đề 29/08 và 🔥 chủ đề trọng điểm {RECENT_REVIEW_PERIOD} "
         "được ghim ở đầu; các đề khác nằm phía dưới."
@@ -3828,7 +4109,9 @@ with st.sidebar:
         selected_idx = st.selectbox(
             f"Chọn câu hỏi ({len(PART1_QUESTIONS)} câu):",
             range(len(PART1_QUESTIONS)),
-            format_func=lambda x: p1_titles[x]
+            format_func=lambda x: p1_titles[x],
+            index=None if "speaking_p1_index" in st.session_state else 0,
+            key="speaking_p1_index",
         )
     elif selected_part == "Part 2: Describe Picture":
         p2_titles = [
@@ -3843,7 +4126,9 @@ with st.sidebar:
         selected_idx = st.selectbox(
             f"Chọn đề Part 2 ({len(PART2_DATA)} đề):",
             range(len(PART2_DATA)),
-            format_func=lambda x: p2_titles[x]
+            format_func=lambda x: p2_titles[x],
+            index=None if "speaking_p2_index" in st.session_state else 0,
+            key="speaking_p2_index",
         )
     elif selected_part == "Part 3: Compare Pictures":
         p3_titles = [
@@ -3857,7 +4142,9 @@ with st.sidebar:
         selected_idx = st.selectbox(
             f"Chọn đề Part 3 ({len(PART3_DATA)} đề):",
             range(len(PART3_DATA)),
-            format_func=lambda x: p3_titles[x]
+            format_func=lambda x: p3_titles[x],
+            index=None if "speaking_p3_index" in st.session_state else 0,
+            key="speaking_p3_index",
         )
     else:
         p4_titles = [
@@ -3872,9 +4159,11 @@ with st.sidebar:
         selected_idx = st.selectbox(
             f"Chọn chủ đề Part 4 ({len(PART4_DATA)} chủ đề):",
             range(len(PART4_DATA)),
-            format_func=lambda x: p4_titles[x]
+            format_func=lambda x: p4_titles[x],
+            index=None if "speaking_p4_index" in st.session_state else 0,
+            key="speaking_p4_index",
         )
-        
+
     st.markdown("---")
     st.markdown("""
     **💡 Quy trình thi:**

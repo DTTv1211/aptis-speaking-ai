@@ -11,6 +11,19 @@ streamlit run app.py
 Điền API key thật vào `.streamlit/secrets.toml`. File này đã được bỏ qua trong
 `.gitignore`, không đưa key lên GitHub hoặc đặt trực tiếp trong `app.py`.
 
+## Bộ đề ngẫu nhiên đủ 4 kỹ năng
+
+Chọn **🎲 Tạo bộ đề ngẫu nhiên** trong thanh bên để lấy một lượt luyện hoàn chỉnh:
+
+- Speaking: 3 câu Part 1 và một đề cho mỗi Part 2, 3, 4.
+- Listening: một bài ở mỗi Part 1–4.
+- Reading: một bài ở mỗi Part 1–4.
+- Writing: Part 2, một câu Part 3 và Part 4 của cùng một chủ đề.
+
+Bộ đề được giữ cố định trong phiên để có thể mở từng bài, luyện tập và chấm bằng
+các màn hình hiện có. Chỉ nút **Tạo một bộ đề khác** mới bốc lại đề. Việc tạo đề
+chạy hoàn toàn từ ngân hàng cục bộ, không gọi Gemini và không tốn quota.
+
 ## Dùng một tài khoản/project Gemini
 
 Một API key là đủ:
