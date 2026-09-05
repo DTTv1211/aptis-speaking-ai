@@ -1796,6 +1796,10 @@ class _ApiKeyFailoverState:
             start = self.active_index % self.key_count
         return [(start + offset) % self.key_count for offset in range(self.key_count)]
 
+    def active_slot(self):
+        with self.lock:
+            return (self.active_index % self.key_count) + 1
+
     def mark_success(self, index: int):
         with self.lock:
             self.active_index = index
@@ -1809,6 +1813,11 @@ class _ApiKeyFailoverState:
 @st.cache_resource
 def _get_api_key_failover_state(key_count: int):
     return _ApiKeyFailoverState(key_count)
+
+
+def _active_api_key_slot(api_keys) -> int:
+    """Slot key sẽ được dùng đầu tiên cho request kế tiếp."""
+    return _get_api_key_failover_state(len(api_keys)).active_slot() if api_keys else 0
 
 
 @st.cache_resource(show_spinner=False)
@@ -1861,16 +1870,28 @@ def _should_try_next_key(error) -> bool:
     ))
 
 
-def _api_failure_message(failed_codes) -> str:
+def _api_key_trace_text(attempted_slots, key_count: int) -> str:
+    """Mô tả slot key đã dùng mà không làm lộ giá trị API key."""
+    slots = [int(slot) for slot in attempted_slots if slot]
+    if not slots:
+        return ""
+    route = " → ".join(f"#{slot}" for slot in slots)
+    change_note = "đã đổi key" if len(slots) > 1 else "không đổi key"
+    return f"Theo dõi API key: {route}/{key_count} ({change_note})."
+
+
+def _api_failure_message(failed_codes, attempted_slots=(), key_count=0) -> str:
     codes = [code for code in failed_codes if code]
     code_summary = ", ".join(str(code) for code in codes)
     detail = f" (HTTP: {code_summary})" if code_summary else ""
+    trace = _api_key_trace_text(attempted_slots, key_count)
+    trace_suffix = f" {trace}" if trace else ""
 
     if codes and all(code == 429 for code in codes):
         return (
             "Gemini báo vượt rate limit/quota (HTTP 429). Hãy chờ rồi thử lại. "
             "Nhiều API key trong cùng một Google Cloud project vẫn dùng chung quota; "
-            "chỉ key thuộc project khác mới có hạn mức độc lập."
+            f"chỉ key thuộc project khác mới có hạn mức độc lập.{trace_suffix}"
         )
     if any(code in {500, 502, 503, 504} for code in codes):
         failover_note = (
@@ -1881,19 +1902,19 @@ def _api_failure_message(failed_codes) -> str:
         return (
             "Gemini đang quá tải hoặc tạm thời không khả dụng"
             f"{detail}. Đây không phải thông báo hết quota; ứng dụng đã tự thử lại "
-            f"với backoff.{failover_note} Hãy đợi một lúc rồi chấm lại."
+            f"với backoff.{failover_note}{trace_suffix} Hãy đợi một lúc rồi chấm lại."
         )
     if any(code in {401, 403} for code in codes):
         return (
             "Gemini từ chối API key hoặc quyền truy cập"
-            f"{detail}. Hãy kiểm tra key, project và quyền dùng model."
+            f"{detail}.{trace_suffix} Hãy kiểm tra key, project và quyền dùng model."
         )
     if any(code in {408, 499} for code in codes):
         return (
             "Yêu cầu chấm bị gián đoạn hoặc hết thời gian chờ"
-            f"{detail}. Bản ghi vẫn còn; hãy bấm chấm lại."
+            f"{detail}.{trace_suffix} Bản ghi vẫn còn; hãy bấm chấm lại."
         )
-    return f"Gemini không thể xử lý yêu cầu{detail}. Hãy thử lại sau."
+    return f"Gemini không thể xử lý yêu cầu{detail}.{trace_suffix} Hãy thử lại sau."
 
 
 def _generate_with_key_failover(api_keys, generate_request):
@@ -1902,30 +1923,43 @@ def _generate_with_key_failover(api_keys, generate_request):
 
     state = _get_api_key_failover_state(len(api_keys))
     failed_codes = []
+    attempted_slots = []
     for attempt_number, key_index in enumerate(state.candidate_indices(), start=1):
         # Giữ đủ 4 lần retry cho lỗi 503. Failover chỉ xảy ra với 401/403/429,
         # nên một lỗi capacity không thể bị nhân lên theo số API key.
         client = _get_genai_client(api_keys[key_index], GEMINI_RETRY_ATTEMPTS)
+        attempted_slots.append(key_index + 1)
         try:
             response = generate_request(client)
             state.mark_success(key_index)
-            return response, key_index, attempt_number
+            return response, key_index, attempted_slots
         except errors.APIError as error:
             code = _api_error_code(error)
             failed_codes.append(code)
             if not _should_try_next_key(error):
                 if code in {408, 499, 500, 502, 503, 504}:
-                    raise RuntimeError(_api_failure_message(failed_codes)) from None
+                    raise RuntimeError(
+                        _api_failure_message(
+                            failed_codes, attempted_slots, len(api_keys)
+                        )
+                    ) from None
                 raise RuntimeError(
                     f"Gemini từ chối yêu cầu (HTTP {code or 'không xác định'}). "
+                    f"{_api_key_trace_text(attempted_slots, len(api_keys))} "
                     "Hãy kiểm tra tên model và cấu hình request."
                 ) from None
             state.mark_failed(key_index)
         except httpx.HTTPError:
             # Lỗi mạng cục bộ không liên quan đến project/API key.
-            raise RuntimeError("Không thể kết nối Gemini API. Hãy kiểm tra mạng và thử lại.") from None
+            raise RuntimeError(
+                "Không thể kết nối Gemini API. "
+                f"{_api_key_trace_text(attempted_slots, len(api_keys))} "
+                "Hãy kiểm tra mạng và thử lại."
+            ) from None
 
-    raise RuntimeError(_api_failure_message(failed_codes))
+    raise RuntimeError(
+        _api_failure_message(failed_codes, attempted_slots, len(api_keys))
+    )
 
 
 def _structured_generation_config(system_instruction, response_schema, max_output_tokens):
@@ -2005,7 +2039,7 @@ sung nhưng không được dùng phần minh họa làm bằng chứng chấm �
         )
 
     request_started_at = time.perf_counter()
-    response, used_key_index, attempt_count = _generate_with_key_failover(
+    response, used_key_index, attempted_slots = _generate_with_key_failover(
         api_keys,
         _send_single_request
     )
@@ -2043,7 +2077,8 @@ sung nhưng không được dùng phần minh họa làm bằng chứng chấm �
         result["api_key_slot"] = used_key_index + 1
         result["transcription_api_key_slot"] = used_key_index + 1
         result["api_key_count"] = len(api_keys)
-        result["api_failover_used"] = attempt_count > 1
+        result["api_failover_used"] = len(attempted_slots) > 1
+        result["api_key_attempted_slots"] = attempted_slots
         result["api_request_count"] = 1
         result["processing_seconds"] = processing_seconds
         return result
@@ -2078,7 +2113,8 @@ sung nhưng không được dùng phần minh họa làm bằng chứng chấm �
     assessment["api_key_slot"] = used_key_index + 1
     assessment["transcription_api_key_slot"] = used_key_index + 1
     assessment["api_key_count"] = len(api_keys)
-    assessment["api_failover_used"] = attempt_count > 1
+    assessment["api_failover_used"] = len(attempted_slots) > 1
+    assessment["api_key_attempted_slots"] = attempted_slots
     assessment["api_request_count"] = 1
     assessment["processing_seconds"] = processing_seconds
     return assessment
@@ -2277,7 +2313,7 @@ def evaluate_writing(task_part: str, task_text: str, responses: dict, limits: di
         )
 
     request_started_at = time.perf_counter()
-    response, used_key_index, attempt_count = _generate_with_key_failover(
+    response, used_key_index, attempted_slots = _generate_with_key_failover(
         api_keys,
         _send_single_request,
     )
@@ -2310,7 +2346,8 @@ def evaluate_writing(task_part: str, task_text: str, responses: dict, limits: di
     assessment["word_counts"] = word_counts
     assessment["api_key_slot"] = used_key_index + 1
     assessment["api_key_count"] = len(api_keys)
-    assessment["api_failover_used"] = attempt_count > 1
+    assessment["api_failover_used"] = len(attempted_slots) > 1
+    assessment["api_key_attempted_slots"] = attempted_slots
     assessment["api_request_count"] = 1
     assessment["processing_seconds"] = processing_seconds
     return assessment
@@ -3549,6 +3586,12 @@ def _render_writing_feedback(result: dict):
             f"{result.get('api_key_count', len(GEMINI_API_KEYS))} · {GEMINI_MODEL} "
             f"· {result.get('api_request_count', 1)} request{processing_label}"
         )
+        st.caption(
+            _api_key_trace_text(
+                result.get("api_key_attempted_slots", [result["api_key_slot"]]),
+                result.get("api_key_count", len(GEMINI_API_KEYS)),
+            )
+        )
     if result.get("evidence_status") != "sufficient":
         st.warning("Bài viết còn thiếu hoặc quá ngắn nên bằng chứng chấm điểm bị hạn chế.")
 
@@ -3625,7 +3668,9 @@ def _render_writing_practice():
         if input_key:
             GEMINI_API_KEYS = _normalize_api_keys(input_key)
     else:
+        active_slot = _active_api_key_slot(GEMINI_API_KEYS)
         st.caption(f"🔐 Đã nạp {len(GEMINI_API_KEYS)} API key · Model: {GEMINI_MODEL}")
+        st.caption(f"🎯 Request tiếp theo sẽ dùng API key #{active_slot}/{len(GEMINI_API_KEYS)}")
 
     club_name = st.selectbox("Chọn chủ đề:", list(WRITING_FOCUS_DATA), key="writing_club")
     task = WRITING_FOCUS_DATA[club_name]
@@ -4106,7 +4151,9 @@ with st.sidebar:
         if input_key:
             GEMINI_API_KEYS = _normalize_api_keys(input_key)
     else:
+        active_slot = _active_api_key_slot(GEMINI_API_KEYS)
         st.caption(f"🔐 Đã nạp {len(GEMINI_API_KEYS)} API key · Model: {GEMINI_MODEL}")
+        st.caption(f"🎯 Request tiếp theo sẽ dùng API key #{active_slot}/{len(GEMINI_API_KEYS)}")
         if len(GEMINI_API_KEYS) > 1:
             st.caption(
                 "Lưu ý: các key cùng một Google Cloud project dùng chung quota."
@@ -4465,7 +4512,7 @@ with col_left:
             else:
                 with st.spinner(
                     "AI đang chép lời và chấm trong một lượt "
-                    "(lỗi 429/503 sẽ tự retry và chuyển key dự phòng)..."
+                    "(503 retry cùng key; 401/403/429 mới chuyển key)..."
                 ):
                     try:
                         result = evaluate_audio(
@@ -4535,6 +4582,12 @@ with col_right:
                 f"Đã xử lý bằng API key #{res['api_key_slot']}/"
                 f"{res.get('api_key_count', len(GEMINI_API_KEYS))} · {GEMINI_MODEL} "
                 f"· {res.get('api_request_count', 1)} request{processing_label}"
+            )
+            st.caption(
+                _api_key_trace_text(
+                    res.get("api_key_attempted_slots", [res["api_key_slot"]]),
+                    res.get("api_key_count", len(GEMINI_API_KEYS)),
+                )
             )
         transcription_key_slot = res.get("transcription_api_key_slot")
         if (
