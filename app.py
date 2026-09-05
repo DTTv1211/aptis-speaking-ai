@@ -3296,6 +3296,7 @@ def _render_listening_practice():
         "Part 1 là bộ ôn đủ dạng nhận diện thông tin, không gắn nhãn dự đoán. "
         "Part 2–4 chỉ hiển thị các chủ đề trọng điểm đã đối chiếu từ bộ dự đoán."
     )
+    st.success("🔑 KEY: HỌC HIỂU ĐÁP ÁN — nhớ ý và từ khóa, không học thuộc vị trí đáp án.")
     st.caption("Cách học: nghe/nhớ → ghi từ khóa → chọn đáp án → lật thẻ → nhắc lại bằng tiếng Anh.")
 
     part_name = st.radio(
@@ -3547,6 +3548,7 @@ def _render_reading_practice():
         "Part 1 là bộ ôn đủ dạng hoàn thành câu, không gắn nhãn dự đoán. "
         "Part 2 trở đi ưu tiên đúng các nhóm xuất hiện nhiều trong tài liệu."
     )
+    st.success("🔑 KEY: HỌC HIỂU ĐÁP ÁN — dịch/hiểu ý, nối logic rồi mới ghi nhớ key.")
     mode = st.radio(
         "Chọn cách luyện:",
         [
