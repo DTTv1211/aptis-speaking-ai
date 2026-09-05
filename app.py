@@ -40,9 +40,9 @@ PART_LABELS = {
 
 FORMULAS = {
     "Part 1": "Answer directly → add 1 detail → add 1 reason/example.",
-    "Part 2": "Describe the picture → answer the follow-up → explain why or add an example.",
-    "Part 3": "Describe and compare → answer the focus question → explain your reason or consequence.",
-    "Part 4": "Answer the 3 prompts in order: event/example → feeling/response → opinion/explanation.",
+    "Part 2": "Overall → Details (foreground/background) → Atmosphere → Personal link.",
+    "Part 3": "Similarity → Differences (whereas/while) → Preference + 2 reasons.",
+    "Part 4": "Past event → Problem → Action → Result → Feeling/Lesson → Broader social view.",
 }
 
 QUESTION_SOURCES = {
