@@ -2791,6 +2791,51 @@ READING_ORDER_DATA = [
     },
 ]
 
+# Gợi ý học Part 2: hiểu nghĩa từng câu rồi mới nhớ chuỗi logic. Đây là bản
+# dịch ngắn để người học đối chiếu, không thay cho việc tự đọc cả đoạn.
+READING_ORDER_STUDY_DATA = {
+    "r-cafe": {
+        "translations": [
+            "Quán cà phê đông người và nhân viên đang làm việc vất vả trong ngày đầu tiên.",
+            "Dù đông, tôi vẫn tìm được bàn và một nhân viên mang thực đơn cho tôi.",
+            "Tôi thất vọng vì thực đơn không có nhiều lựa chọn.",
+            "Tôi chọn chiếc bánh sandwich đắt nhất.",
+            "Nó ngon, nhất là phần phô mai, nên tôi quyết định sẽ quay lại.",
+        ],
+        "key": "quán mới → đông người → tìm bàn/thực đơn → thất vọng → món ngon → quay lại",
+    },
+    "r-singer": {
+        "translations": [
+            "Bây giờ anh ấy là một ca sĩ nổi tiếng và được nhiều người yêu thích.",
+            "Anh ấy bắt đầu học nhạc khi mười lăm tuổi.",
+            "Anh ấy luyện cả giọng hát và kỹ năng biểu diễn.",
+            "Phong cách thời trang và màn biểu diễn riêng giúp anh ấy nổi tiếng.",
+            "Nhờ vậy, ngày càng nhiều người nhận ra anh ấy.",
+        ],
+        "key": "bắt đầu học → luyện tập → phong cách riêng → nổi tiếng → được nhận ra",
+    },
+    "r-sports": {
+        "translations": [
+            "Một cuộc đua dài mười dặm bắt đầu với năm người đàn ông và một phụ nữ ở phía trước.",
+            "Có sáu mươi người tham gia; cô Kamus nhanh nhất và đã thắng cuộc đua.",
+            "Sau khi trao giải, các hoạt động dành cho trẻ em bắt đầu.",
+            "Họ đá bóng, bơi và nhảy dây; mọi người đều vui vẻ.",
+            "Cuối cùng, bọn trẻ đói bụng và ăn cùng bố mẹ.",
+        ],
+        "key": "bắt đầu cuộc đua → người thắng → trao giải → hoạt động trẻ em → ăn cùng bố mẹ",
+    },
+    "r-films": {
+        "translations": [
+            "Ngày trước, nhiều bộ phim đen trắng và không có âm thanh.",
+            "Các nhà làm phim cũng gặp hạn chế kỹ thuật và ngân sách ít.",
+            "Vì những hạn chế đó, diễn viên thường kiếm được rất ít tiền.",
+            "Sau này công nghệ và ngành điện ảnh phát triển nhanh chóng.",
+            "Ngày nay, nhà sản xuất và diễn viên thành công có thể kiếm nhiều tiền hơn.",
+        ],
+        "key": "phim cũ → hạn chế kỹ thuật → diễn viên thu nhập thấp → công nghệ phát triển → thu nhập cao",
+    },
+}
+
 
 READING_KEYWORD_DATA = [
     {
@@ -3260,6 +3305,17 @@ def _render_listening_practice():
         key="listening_part",
     )
     topics = LISTENING_FOCUS_DATA[part_name]
+    if part_name.startswith("Part 3"):
+        st.info(
+            "🎯 Trọng tâm Part 3: ưu tiên học dạng **Both** — nghe xem hai người "
+            "cùng nêu hoặc cùng đồng ý ý nào. Với đáp án **Man/Woman**, hãy tự nghe "
+            "lại audio và ghi M/W/B theo bằng chứng, không học thuộc vị trí đáp án."
+        )
+    elif part_name.startswith("Part 4"):
+        st.info(
+            "🧠 Trọng tâm Part 4: học key theo 2 ý chính của bài nói. Nghe từ nối "
+            "(first, however, as a result), ghi ý ngắn rồi tự nói lại bằng từ của mình."
+        )
     topic_index = st.selectbox(
         "Chọn bài luyện:",
         range(len(topics)),
@@ -3363,6 +3419,10 @@ def _render_reading_part1_exercise(item):
 def _render_reading_order_exercise(item):
     st.subheader(item["title"])
     st.markdown(f"**Câu mở đầu:** {item['intro']}")
+    st.info(
+        "📘 Cách học Part 2: dịch nhanh để hiểu nghĩa, tìm từ nối và quan hệ "
+        "nguyên nhân–kết quả, sau đó nhớ **key theo thứ tự**. Không học thuộc câu rời."
+    )
     st.caption("Chọn một câu cho mỗi vị trí. Không dùng một câu hai lần.")
 
     sentence_count = len(item["sentences"])
@@ -3408,10 +3468,22 @@ def _render_reading_order_exercise(item):
     with st.expander("👁️ Xem thứ tự đúng"):
         for number, sentence in enumerate(item["sentences"], start=1):
             st.markdown(f"{number}. {sentence}")
-
+        study = READING_ORDER_STUDY_DATA.get(item["id"], {})
+        translations = study.get("translations", [])
+        if translations:
+            st.markdown("#### Dịch nhanh để hiểu đáp án")
+            for number, translation in enumerate(translations, start=1):
+                st.markdown(f"{number}. {translation}")
+        if study.get("key"):
+            st.success("🔑 Key thứ tự: " + study["key"])
 
 def _render_reading_part3_exercise(item):
     st.subheader(item["title"])
+    st.info(
+        "🔗 Cách học Part 3: đọc để hiểu **bản chất** từng đoạn (ai, việc gì, "
+        "thái độ nào), rồi nối câu hỏi với bằng chứng. Hãy tìm từ đồng nghĩa và "
+        "ý tương đương; không học vẹt vị trí A/B/C/D."
+    )
     st.caption(
         "Đọc bốn đoạn A–D rồi ghép từng nhận định. Một người có thể là đáp án "
         "của nhiều câu."
@@ -3462,6 +3534,10 @@ def _render_reading_part3_exercise(item):
     with st.expander("👁️ Xem đáp án và đối chiếu"):
         for number, (question, answer) in enumerate(item["questions"], start=1):
             st.markdown(f"{number}. **{answer}** — {question}")
+            passage = item["passages"].get(answer, "")
+            first_sentence = passage.split(". ", 1)[0].strip()
+            if first_sentence:
+                st.caption(f"Bản chất đoạn {answer}: {first_sentence}.")
         st.caption("Hãy quay lại đoạn tương ứng và gạch chân câu làm bằng chứng.")
 
 
@@ -3475,9 +3551,9 @@ def _render_reading_practice():
         "Chọn cách luyện:",
         [
             "Part 1 - Hoàn thành câu",
-            "Part 2 - Sắp xếp câu",
-            "Part 3 - Ghép người nói",
-            "Chuỗi từ khóa ghép tiêu đề",
+            "Part 2 - Dịch hiểu & xếp thứ tự",
+            "Part 3 - Nối đoạn theo bản chất",
+            "Part 4 - Học key",
         ],
         horizontal=True,
         key="reading_mode",
@@ -3491,7 +3567,7 @@ def _render_reading_practice():
             key="reading_part1_topic",
         )
         _render_reading_part1_exercise(READING_PART1_DATA[item_index])
-    elif mode == "Part 2 - Sắp xếp câu":
+    elif mode == "Part 2 - Dịch hiểu & xếp thứ tự":
         item_index = st.selectbox(
             "Chọn bài:",
             range(len(READING_ORDER_DATA)),
@@ -3499,7 +3575,7 @@ def _render_reading_practice():
             key="reading_order_topic",
         )
         _render_reading_order_exercise(READING_ORDER_DATA[item_index])
-    elif mode == "Part 3 - Ghép người nói":
+    elif mode == "Part 3 - Nối đoạn theo bản chất":
         item_index = st.selectbox(
             "Chọn bài Part 3:",
             range(len(READING_PART3_DATA)),
@@ -3517,6 +3593,11 @@ def _render_reading_practice():
         )
         item = READING_KEYWORD_DATA[item_index]
         st.subheader(item["title"])
+        st.info(
+            "🔑 Cách học Part 4: tự nhớ các key theo thứ tự ý của bài, hiểu "
+            "nghĩa từng key rồi mới lật thẻ kiểm tra. Dùng key để kể lại nội dung, "
+            "không học thuộc nguyên văn."
+        )
         st.write("Tự nhớ thứ tự từ khóa trước, sau đó lật thẻ để kiểm tra.")
         st.text_input(
             "Nhập chuỗi bạn nhớ:",
