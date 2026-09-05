@@ -1817,7 +1817,13 @@ def _get_api_key_failover_state(key_count: int):
 
 def _active_api_key_slot(api_keys) -> int:
     """Slot key sẽ được dùng đầu tiên cho request kế tiếp."""
-    return _get_api_key_failover_state(len(api_keys)).active_slot() if api_keys else 0
+    if not api_keys:
+        return 0
+    state = _get_api_key_failover_state(len(api_keys))
+    # Streamlit có thể giữ instance cache_resource của bản code trước khi hot
+    # reload; đọc trực tiếp các thuộc tính cũ giúp deploy không cần reboot worker.
+    with state.lock:
+        return (state.active_index % state.key_count) + 1
 
 
 @st.cache_resource(show_spinner=False)
