@@ -4143,6 +4143,9 @@ with st.sidebar:
         index=None if "speaking_part" in st.session_state else 1,
         key="speaking_part",
     )
+    if selected_part is None:
+        st.info("👈 Hãy chọn một phần thi Speaking để bắt đầu.")
+        st.stop()
     st.caption(
         f"🆕 Đề 29/08 và 🔥 chủ đề trọng điểm {RECENT_REVIEW_PERIOD} "
         "được ghim ở đầu; các đề khác nằm phía dưới."
@@ -4242,6 +4245,10 @@ with st.sidebar:
         st.markdown("- **Part 2:** 45 giây/câu · 3 câu")
         st.markdown("- **Part 3:** 45 giây/câu · 3 câu")
         st.markdown("- **Part 4:** chuẩn bị 60 giây · trả lời tối đa 120 giây")
+
+if selected_idx is None:
+    st.info("👈 Hãy chọn một câu hỏi hoặc chủ đề ở thanh bên để bắt đầu luyện tập.")
+    st.stop()
 
 col_left, col_right = st.columns([1.05, 1.15], gap="large")
 
